@@ -27,9 +27,9 @@ class NeuralMTComponent(object):
         for i, word in enumerate(self.vocab):
             self.vocab_map[word] = i
         self.inputs = map(str.strip, open(self.mt_path.input_path).readlines())
-        self.input_tokens = map(self._get_tokens, self.inputs)
+        self.input_tokens = map(self.get_tokens, self.inputs)
 
-    def _get_tokens(self, line):
+    def get_tokens(self, line):
         if self.config.char_based:
             src_words = list(line)
         else:
@@ -132,14 +132,14 @@ class NeuralTranslator(object):
         :type config: NeuralMTConfiguration
         """
         self.config = config
+        self._prepare()
 
-    def score(self, input_path, output_path):
+    def batch_score(self, input_path, output_path):
         """
         Score given translation results.
         :param input_path: translation results
         :param output_path: scoring output file
         """
-        self._prepare()
         scoring_results = map(str.strip, open(input_path).readlines())
 
         # iterations
@@ -163,7 +163,7 @@ class NeuralTranslator(object):
             fresult.write("%f\n" % score)
         fresult.close()
 
-    def translate(self, output_path, beam_size=20, include_score=False):
+    def batch_translate(self, output_path, beam_size=20, include_score=False):
         """
         Translate.
         :param beam_size:
@@ -171,9 +171,6 @@ class NeuralTranslator(object):
         :param beam_size: beam size of the decoding
         :param include_score: if including score in the result
         """
-        self._prepare()
-
-
         # translation iterations
         total_bleu = 0.
         total_smoothed_bleu = 0.
@@ -204,6 +201,23 @@ class NeuralTranslator(object):
         print "Total count:", total_count
         print "Mean BLEU: %.2f" % (total_bleu / total_count)
         print "Mean smoothed BLEU: %.2f" % (total_smoothed_bleu / total_count)
+
+    def translate(self, sentence, beam_size=20):
+        """
+        Translate one sentence.
+        :return: result, score
+        """
+        ensemble_inputs = [component.get_tokens(sentence) for component in self.ensembles]
+        result, score = self._translate_core(ensemble_inputs, beam_size=beam_size)
+        # Special case
+        if result:
+            result_words = self._postprocess(sentence.split(" "), result)
+            if not result_words:
+                result_words.append("EMPTY")
+            output_line = " ".join(result_words)
+            return output_line, score
+        else:
+            return None, None
 
     def _prepare(self):
         self.ensembles = [NeuralMTComponent(p, self.config) for p in self.config.paths()]

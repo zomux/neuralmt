@@ -50,5 +50,5 @@ if __name__ == '__main__':
         )
 
     translator = NeuralTranslator(config)
-    translator.translate(args.dump, args.beam_size, True)
+    translator.batch_translate(args.dump, args.beam_size, True)
 
