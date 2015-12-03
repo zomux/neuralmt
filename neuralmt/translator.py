@@ -26,8 +26,12 @@ class NeuralMTComponent(object):
         self.vocab_map = {}
         for i, word in enumerate(self.vocab):
             self.vocab_map[word] = i
-        self.inputs = map(str.strip, open(self.mt_path.input_path).readlines())
-        self.input_tokens = map(self.get_tokens, self.inputs)
+        if self.mt_path.input_path:
+            self.inputs = map(str.strip, open(self.mt_path.input_path).readlines())
+            self.input_tokens = map(self.get_tokens, self.inputs)
+        else:
+            self.inputs = []
+            self.input_tokens = []
 
     def get_tokens(self, line):
         if self.config.char_based:
