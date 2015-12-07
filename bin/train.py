@@ -67,7 +67,7 @@ if __name__ == '__main__':
         encoder_bf = decoder_bf = 0
 
     model = NeuralTM(input_dim=args.source_size, input_tensor=input_var,
-                     monitor_callback=training_monitor, sampling=args.sample)
+                     monitor_callback=training_monitor)
     # Embedding
     if args.word_embed:
         encoder_embed = WordEmbedding(args.word_embed, args.source_size, zero_index=-1)
@@ -154,6 +154,11 @@ if __name__ == '__main__':
                     LSTM(args.hidden_size, input_type="sequence", output_type="sequence",
                          steps=model.target_length, forget_bias=decoder_bf))
 
+    elif args.arch == "lstm_transform_two_layer":
+
+        model.stack(LSTM(args.hidden_size, input_type="sequence", output_type="sequence", mask=input_mask, forget_bias=encoder_bf),
+                    LSTM(args.hidden_size, input_type="sequence", output_type="sequence", mask=input_mask, forget_bias=decoder_bf))
+
     elif args.arch == "one_layer_search":
         # Encoder
         forward_rnn = IRNN(args.hidden_size, input_type="sequence", output_type="sequence",
@@ -229,18 +234,6 @@ if __name__ == '__main__':
                     cache_on_memory=True, shuffle_memory=args.shuffle_memory)
     valid_set = data.valid_set()
     train_set = data.train_set()
-
-    # Sample
-    if args.sample and args.target_vocab:
-        vocab_map = pickle.load(open(args.target_vocab))
-        for x in valid_set:
-            outputs = model.compute(x[0])
-            targets = x[1]
-            for output, target in zip(outputs, targets):
-                print "[R]", " ".join(model.decode(target, vocab_map))
-                print "[T]", " ".join(model.decode(output, vocab_map))
-            break
-        sys.exit(0)
 
     # Train
     training_config = {"learning_rate": LearningRateAnnealer.learning_rate(args.lr),
