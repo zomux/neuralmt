@@ -3,14 +3,14 @@
 
 from deepy import *
 
-class TMSearchLayer(NeuralLayer):
+class SoftAttentionalLayer(NeuralLayer):
 
     def __init__(self, recurrent_unit, steps=40, mask=None, predict_input=None, test=False):
         """
         :type recurrent_unit: NeuralLayer
         :param test: indicate if this is for the test time.
         """
-        super(TMSearchLayer, self).__init__("tm_search")
+        super(SoftAttentionalLayer, self).__init__("tm_search")
         self.recurrent_unit = recurrent_unit
         self.steps = steps
         self.mask = mask

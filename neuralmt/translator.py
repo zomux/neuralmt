@@ -101,7 +101,7 @@ class NeuralMTComponent(object):
             decoder_input = target_embed.output(decoder_model.input_tensor)
 
             recurrent_unit =  LSTM(self.config.hidden_size, input_type="sequence", output_type="sequence", second_input_size=self.config.word_embed)
-            decoder_core = TMSearchLayer(recurrent_unit, mask=T.neq(decoder_x, -1), predict_input=True, test=True)
+            decoder_core = SoftAttentionalLayer(recurrent_unit, mask=T.neq(decoder_x, -1), predict_input=True, test=True)
             decoder_core.connect(self.config.hidden_size * 2)
             decoder_model.register_layer(decoder_core)
             # init_states = recurrent_unit.produce_initial_states(x)

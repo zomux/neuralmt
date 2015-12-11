@@ -32,3 +32,6 @@ class NeuralVocab(object):
 
     def decode_token(self, index):
         return self._vocab[index] if index < len(self._vocab) else "UNK"
+
+    def contains(self, token):
+        return token in self._vocab_map

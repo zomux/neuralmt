@@ -8,7 +8,7 @@ import pickle
 
 from deepy import *
 from deepy.trainers.trainers import FineTuningAdaGradTrainer
-from neuralmt import NeuralTM, TMCostLayer, TMSearchLayer
+from neuralmt import NeuralTM, TMCostLayer, SoftAttentionalLayer
 
 default_model = "/tmp/default_model.gz"
 counter = 0
@@ -73,7 +73,7 @@ if __name__ == '__main__':
         encoder_embed = WordEmbedding(args.word_embed, args.source_size, zero_index=-1)
         model.stack(encoder_embed)
     else:
-        model.stack(OneHotEmbedding(args.source_size, on_memory=False, zero_index=-1))
+        model.stack(OneHotEmbedding(args.source_size, cached=False, zero_index=-1))
 
     # Target embedding
     if args.predict:
@@ -173,7 +173,7 @@ if __name__ == '__main__':
         # Decoder
         recurrent_unit = IRNN(args.hidden_size, input_type="sequence", output_type="sequence",
                               bound_recurrent_weight=False, weight_scale=0.9, second_input_size=second_input_size)
-        decoder = TMSearchLayer(recurrent_unit, steps=model.target_length, mask=input_mask, predict_input=second_input)
+        decoder = SoftAttentionalLayer(recurrent_unit, steps=model.target_length, mask=input_mask, predict_input=second_input)
         model.stack(decoder)
     elif args.arch == "tuned_one_layer_search":
         # Encoder
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         # Decoder
         recurrent_unit = IRNN(args.hidden_size, input_type="sequence", output_type="sequence",
                               bound_recurrent_weight=False, weight_scale=0.8, second_input_size=second_input_size)
-        decoder = TMSearchLayer(recurrent_unit, steps=model.target_length, mask=input_mask, predict_input=second_input)
+        decoder = SoftAttentionalLayer(recurrent_unit, steps=model.target_length, mask=input_mask, predict_input=second_input)
         model.stack(decoder)
 
     elif args.arch == "lstm_one_layer_search":
@@ -204,7 +204,7 @@ if __name__ == '__main__':
                                 )))
         # Decoder
         recurrent_unit = LSTM(args.hidden_size, input_type="sequence", output_type="sequence", second_input_size=second_input_size)
-        decoder = TMSearchLayer(recurrent_unit, steps=model.target_length, mask=input_mask, predict_input=second_input)
+        decoder = SoftAttentionalLayer(recurrent_unit, steps=model.target_length, mask=input_mask, predict_input=second_input)
         model.stack(decoder)
     elif args.arch == "gru_one_layer_search":
         # Encoder
@@ -218,7 +218,7 @@ if __name__ == '__main__':
                                 )))
         # Decoder
         recurrent_unit = GRU(args.hidden_size, input_type="sequence", output_type="sequence", second_input_size=second_input_size)
-        decoder = TMSearchLayer(recurrent_unit, steps=model.target_length, mask=input_mask, predict_input=second_input)
+        decoder = SoftAttentionalLayer(recurrent_unit, steps=model.target_length, mask=input_mask, predict_input=second_input)
         model.stack(decoder)
 
     if args.approx:
@@ -231,7 +231,7 @@ if __name__ == '__main__':
     model.stack(TMCostLayer(model.target_matrix, model.target_mask, args.target_size))
 
     data = OnDiskDataset(args.data, valid_path=args.valid, train_size=args.train_size,
-                    cache_on_memory=True, shuffle_memory=args.shuffle_memory)
+                         cached=True, shuffle_memory=args.shuffle_memory)
     valid_set = data.valid_set()
     train_set = data.train_set()
 
