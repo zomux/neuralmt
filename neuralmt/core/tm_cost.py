@@ -8,12 +8,14 @@ class TMCostLayer(NeuralLayer):
     def __init__(self, target, mask, target_size):
         """
         :param target: 2d (batch, time)
+        :type target: NeuralVar
         :param mask:  2d (batch, time)
+        :type mask: NeuralVar
         :param target_size: scalar
         """
         super(TMCostLayer, self).__init__("tm_cost")
-        self.target = target
-        self.mask = mask
+        self.target = target.tensor
+        self.mask = mask.tensor
         self.target_size = target_size
 
     def output(self, x):

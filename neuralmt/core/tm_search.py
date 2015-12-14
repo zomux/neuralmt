@@ -13,11 +13,11 @@ class SoftAttentionalLayer(NeuralLayer):
         super(SoftAttentionalLayer, self).__init__("tm_search")
         self.recurrent_unit = recurrent_unit
         self.steps = steps
-        self.mask = mask
-        self.predict_input = predict_input
+        self.mask = mask.tensor if type(mask) == NeuralVar else mask
+        self.predict_input = predict_input.tensor if type(predict_input) == NeuralVar else predict_input
         self.test = test
 
-    def setup(self):
+    def prepare(self):
         """
         Initialize the parameters, they are named following the original paper.
         """
