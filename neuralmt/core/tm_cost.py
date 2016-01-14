@@ -5,7 +5,7 @@ from deepy import *
 
 class TMCostLayer(NeuralLayer):
 
-    def __init__(self, target, mask, target_size):
+    def __init__(self, target, mask, target_size, cost_map = None):
         """
         :param target: 2d (batch, time)
         :type target: NeuralVar
@@ -17,6 +17,7 @@ class TMCostLayer(NeuralLayer):
         self.target = target.tensor
         self.mask = mask.tensor
         self.target_size = target_size
+        self.cost_map = cost_map
 
     def output(self, x):
         """
@@ -37,5 +38,7 @@ class TMCostLayer(NeuralLayer):
         prob_vector = result_vector[target_index_vector]
         prob_vector = T.clip(prob_vector, EPSILON, 1.0 - EPSILON)
         log_prob_vector = - T.log(prob_vector) * flat_mask
+        if self.cost_map:
+            log_prob_vector *= self.cost_map.flatten()
         cost = T.sum(log_prob_vector) / T.sum(flat_mask)
         return cost

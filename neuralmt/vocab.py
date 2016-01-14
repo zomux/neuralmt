@@ -35,3 +35,6 @@ class NeuralVocab(object):
 
     def contains(self, token):
         return token in self._vocab_map
+
+    def size(self):
+        return len(self._vocab)

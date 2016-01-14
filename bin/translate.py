@@ -42,8 +42,6 @@ if __name__ == '__main__':
             target_vocab=args.target_vocab,
             target_vocab_size=args.target_size,
             hidden_size=args.hidden_size,
-            word_embed=args.word_embed,
-            approx_size=600 if args.approx else None,
             char_based=args.character
         ).add_path(
             args.input, args.load, args.source_vocab, args.source_size

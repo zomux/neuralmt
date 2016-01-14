@@ -27,6 +27,7 @@ class SequentialDataBuilder(object):
             vocab = NeuralVocab(vocab)
         elif type(vocab) != NeuralVocab:
             raise SystemError(SequentialDataBuilder.__init__.__doc__)
+        logging.info("vocab size: %d" % vocab.size())
 
         if additional_head and  not vocab.contains(additional_head):
             raise SystemError("%s is not in vocab" % additional_head)
@@ -46,39 +47,53 @@ class SequentialDataBuilder(object):
                 transformed_data.reverse()
             transformed_data.append(transformed_tokens)
         return transformed_data
-    def truncate(self, data_list, size=50):
+    def truncate(self, data_list, source_len=50, target_len=None):
         """
         Truncate a list of data.
         :param data_list:
-        :param size:
         """
+        if not target_len:
+            target_len = source_len
         count_before_truncate = len(data_list[0])
-        transformed_data_list = filter(lambda p: len(p[0]) <= size, data_list)
-        logging.info("truncated data: %d -> %d" % (count_before_truncate, len(transformed_data_list[0])))
-        return transformed_data_list
+        transformed_data_list = filter(lambda p: len(p[0]) <= source_len and len(p[1]) <= target_len,
+                                       zip(*data_list))
+        logging.info("truncated data: %d -> %d" % (count_before_truncate, len(transformed_data_list)))
+        return list(zip(*transformed_data_list))
 
-    def make_batches(self, data, batch_size, output_mask=False, pad_value=0):
+    def make_batches(self, data, batch_size, output_mask=False, pad_value=0, fix_size=None, output_max_lens=False):
         """
         Make batch data.
         :type data: list of list
         :param batch_size
         :param output_mask: output the mask or not
         :param pad_value
+        :param fix_size: fix batch size
+        :param output_max_lens: output a list of max lengths
         """
         batches = []
         masks = []
+        max_lens = []
         for i in range(0, len(data), batch_size):
             sub_data = data[i: i + batch_size]
-            new_batch, new_mask = self._pad_batch(sub_data, pad_value, output_mask)
+            new_batch, new_mask = self._pad_batch(sub_data, pad_value, output_mask, fix_size=fix_size)
             batches.append(new_batch)
             if output_mask:
                 masks.append(new_mask)
+            if output_max_lens:
+                max_lens.append(max(map(len, sub_data)))
         if not output_mask:
             masks = None
-        return batches, masks
 
-    def _pad_batch(self, batch, pad_value, output_mask):
-        max_len = max(map(len, batch))
+        if output_max_lens:
+            return batches, masks, max_lens
+        else:
+            return batches, masks
+
+    def _pad_batch(self, batch, pad_value, output_mask, fix_size=None):
+        if fix_size:
+            max_len = fix_size
+        else:
+            max_len = max(map(len, batch))
         mask = None
         if output_mask:
             mask = []
