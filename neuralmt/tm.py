@@ -5,12 +5,11 @@ from deepy import *
 
 class NeuralTM(BasicNetwork):
 
-    def __init__(self, input_dim, model=None, config=None, input_tensor=None, monitor_callback=None,
-                 sampling=False, sampling_len=50):
+    def __init__(self, input_dim, input_tensor=None):
         self.monitor_callback = monitor_callback
         self.sampling = sampling
         self.sampling_len = sampling_len
-        super(NeuralTM, self).__init__(input_dim, model, config, input_tensor)
+        super(NeuralTM, self).__init__(input_dim, config)
 
     def setup_variables(self):
         super(NeuralTM, self).setup_variables()

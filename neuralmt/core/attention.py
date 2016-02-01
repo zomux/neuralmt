@@ -9,23 +9,22 @@ from deepy import *
 
 class SoftAttentionalLayer(NeuralLayer):
 
-    def __init__(self, recurrent_unit, exponential_weights=False, test=False, sample_feedback=None, initial_feedback=None):
+    def __init__(self, recurrent_unit, exponential_weights=False, feedback_callback=None, initial_feedback=None):
         """
         :type recurrent_unit: RecurrentLayer
         :param test: indicate if this is for the test time.
         """
         super(SoftAttentionalLayer, self).__init__("attention")
         self.recurrent_unit = recurrent_unit
-        self.test = test
         self.exponential_weights = exponential_weights
-        self._sample_feedback = sample_feedback
+        self._feedback_callback = feedback_callback
         self._initial_feedback = initial_feedback
 
     def prepare(self):
         """
         Initialize the parameters, they are named following the original paper.
         """
-        self.recurrent_unit.connect(self.input_dim)
+        self.recurrent_unit.initialize(self.input_dim)
         self.register_inner_layers(self.recurrent_unit)
         self.output_dim = self.recurrent_unit.output_dim
 
@@ -54,13 +53,14 @@ class SoftAttentionalLayer(NeuralLayer):
             aligns = T.exp(aligns - T.max(aligns, axis=1)[None, :].T)
             aligns += EPSILON
         if mask:
-            if self.test:
+            if aligns.ndim == 3:
                 aligns *= mask[None, :]
             else:
                 aligns *= mask
         aligns = T.nnet.softmax(aligns)
         return aligns
 
+    @neural_computation
     def step(self, step_inputs):
         """
         :type step_inputs: dict
@@ -74,20 +74,38 @@ class SoftAttentionalLayer(NeuralLayer):
         context_matrix = T.sum(align_weights[:, :, None] * inputs, axis=1) # (batch, input_dim)
         recurrent_inputs = self.recurrent_unit.get_step_inputs(context_matrix, additional_inputs=[feedback], states=step_inputs)
         step_outputs = self.recurrent_unit.step(recurrent_inputs)
-        if self._sample_feedback:
-            new_feedback = self._sample_feedback(step_outputs[self.recurrent_unit.main_state])
+        if self._feedback_callback:
+            new_feedback = self._feedback_callback(step_outputs[self.recurrent_unit.main_state])
             step_outputs["feedback"] = new_feedback
 
         return step_outputs
 
-    def compute_pre_states(self, inputs):
+    @neural_computation
+    def get_step_inputs(self, input_var, state=None, feedback=None, **kwargs):
+        state_map = {"inputs": input_var, "state": state, "feedback": feedback}
+        state_map.update(self.merge_inputs(input_var))
+        state_map.update(kwargs)
+        return state_map
+
+    @neural_computation
+    def merge_inputs(self, inputs):
         """
-        :type inputs: NeuralVar
+        :type inputs: NeuralVariable
         :return: NeuralVar
         """
-        return {"UaH", inputs.apply(lambda t: T.dot(t, self.Ua), dim=self.output_dim)}
+        return {"UaH": T.dot(inputs, self.Ua)}
 
-    def output(self, inputs, mask=None, feedback=None, steps=None):
+    def set_feedback_callback(self, func, initial_feedback):
+        """
+        Set feedback callback.
+        :param func: a tensor function
+        :param initial_feedback:
+        :return:
+        """
+        self._feedback_callback = func
+        self._initial_feedback = initial_feedback
+
+    def compute_tensor(self, inputs, mask=None, feedback=None, steps=None):
         """
         :param inputs: 3d tensor (batch, time, hidden_size x 2 in bi-directional encoder)
         """
@@ -100,7 +118,7 @@ class SoftAttentionalLayer(NeuralLayer):
             "UaH": T.dot(inputs, self.Ua), # (batch, time, output_dim)
             "mask": mask
         }
-        if self._sample_feedback:
+        if self._feedback_callback:
             sequences.clear()
             init_state_map["feedback"] = self._initial_feedback
         output_dict, updates = Scanner(self.step, sequences=sequences, outputs_info=init_state_map, non_sequences=non_sequences,

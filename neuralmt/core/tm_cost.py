@@ -8,9 +8,9 @@ class TMCostLayer(NeuralLayer):
     def __init__(self, target, mask, target_size, cost_map = None):
         """
         :param target: 2d (batch, time)
-        :type target: NeuralVar
+        :type target: NeuralVariable
         :param mask:  2d (batch, time)
-        :type mask: NeuralVar
+        :type mask: NeuralVariable
         :param target_size: scalar
         """
         super(TMCostLayer, self).__init__("tm_cost")
@@ -19,7 +19,7 @@ class TMCostLayer(NeuralLayer):
         self.target_size = target_size
         self.cost_map = cost_map
 
-    def output(self, x):
+    def compute_tensor(self, x):
         """
         :param x: 3d tensor (batch, time, vocab)
         """

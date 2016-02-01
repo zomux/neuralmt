@@ -48,13 +48,13 @@ if __name__ == '__main__':
 
     src_embed_layer = WordEmbedding(args.word_embed, args.src_vocab_size)
 
-    encoder_embed = src_embed_layer.link(encoder).compute(src_var, mask=src_mask_var)
+    encoder_embed = src_embed_layer.belongs_to(encoder).compute(src_var, mask=src_mask_var)
 
     # encoder
     forward_rnn_var = (GRU(args.hidden_size,input_type="sequence", output_type="sequence", mask=src_mask_var)
-                       .link(encoder).compute(encoder_embed))
+                       .belongs_to(encoder).compute(encoder_embed))
     backward_rnn_var = Chain(GRU(args.hidden_size, input_type="sequence", output_type="sequence", mask=src_mask_var, backward=True),
-                             Reverse3D()).link(encoder).compute(encoder_embed)
+                             Reverse3D()).belongs_to(encoder).compute(encoder_embed)
     hidden_layer = Concatenate(axis=2).compute(forward_rnn_var, backward_rnn_var)
 
     # decoder
@@ -62,30 +62,27 @@ if __name__ == '__main__':
     feedback_var = tgt_var.apply(lambda t: T.concatenate([T.ones((t.shape[0], 1), dtype="int32"), t[:, :-1]], axis=1))
 
     tgt_embed_layer = WordEmbedding(args.word_embed, args.tgt_vocab_size)
-    tgt_embed_layer.connect(1)
+    tgt_embed_layer.initialize(1)
 
-    second_input = tgt_embed_layer.link(decoder).compute(feedback_var, mask=tgt_mask_var)
+    second_input = tgt_embed_layer.belongs_to(decoder).compute(feedback_var, mask=tgt_mask_var)
 
     second_input = DimShuffle(1, 0, 2).compute(second_input)
 
     recurrent_unit = GRU(args.hidden_size, input_type="sequence", output_type="sequence", additional_input_dims=[args.word_embed])
 
     expander_chain = Chain(Dense(600), Dense(args.tgt_vocab_size))
-    expander_chain.connect(args.hidden_size)
+    expander_chain.initialize(args.hidden_size)
 
     attention_layer = SoftAttentionalLayer(recurrent_unit)
-    attention_var = attention_layer.link(decoder).compute(hidden_layer, mask=src_mask_var, feedback=second_input, steps=tgt_var.shape(1))
+    attention_var = attention_layer.belongs_to(decoder).compute(hidden_layer, mask=src_mask_var, feedback=second_input, steps=tgt_var.shape(1))
 
     # expander
-    output_var = expander_chain.link(expander).compute(attention_var)
+    output_var = expander_chain.belongs_to(expander).compute(attention_var)
 
     cost = TMCostLayer(tgt_var, tgt_mask_var, args.tgt_vocab_size).compute(output_var)
 
 
-    model = BasicNetwork(input_vars=[src_var, src_mask_var],
-                         target_vars=[tgt_var, tgt_mask_var],
-                         blocks=[encoder, decoder, expander],
-                         cost=cost)
+    model = BasicNetwork(input_dim=[src_var, src_mask_var])
     model.training_callbacks.append(training_monitor)
 
     data = OnDiskDataset("/tmp/data_prefix_train.pkl",
@@ -110,8 +107,8 @@ if __name__ == '__main__':
             trainer.load_params(training_config["auto_save"])
 
         trainer.run(train_set, valid_set=valid_set, train_size=args.train_size,
-            controllers=[ScheduledLearningRateAnnealer(trainer,
-                                        iter_start_halving=5 - args.skip_iters, max_iters=8 - args.skip_iters)])
+                    controllers=[ScheduledLearningRateAnnealer(trainer,
+                                                               start_halving_at=5 - args.skip_iters, end_at=8 - args.skip_iters)])
     else:
         if args.optimizer == "sgd":
             trainer = SGDTrainer(model, training_config)
@@ -123,4 +120,4 @@ if __name__ == '__main__':
             trainer = FineTuningAdaGradTrainer(model, training_config)
 
         trainer.run(train_set, valid_set=valid_set, train_size=args.train_size,
-            controllers=[ScheduledLearningRateAnnealer(trainer, iter_start_halving=5, max_iters=7)])
+                    controllers=[ScheduledLearningRateAnnealer(trainer, start_halving_at=5, end_at=7)])

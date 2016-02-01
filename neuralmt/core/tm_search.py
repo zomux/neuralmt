@@ -13,15 +13,15 @@ class OldSoftAttentionalLayer(NeuralLayer):
         super(OldSoftAttentionalLayer, self).__init__("tm_search")
         self.recurrent_unit = recurrent_unit
         self.steps = steps
-        self.mask = mask.tensor if type(mask) == NeuralVar else mask
-        self.predict_input = predict_input.tensor if type(predict_input) == NeuralVar else predict_input
+        self.mask = mask.tensor if type(mask) == NeuralVariable else mask
+        self.predict_input = predict_input.tensor if type(predict_input) == NeuralVariable else predict_input
         self.test = test
 
     def prepare(self):
         """
         Initialize the parameters, they are named following the original paper.
         """
-        self.recurrent_unit.connect(self.input_dim)
+        self.recurrent_unit.initialize(self.input_dim)
         self.register_inner_layers(self.recurrent_unit)
         self.output_dim = self.recurrent_unit.output_dim
 
@@ -75,7 +75,7 @@ class OldSoftAttentionalLayer(NeuralLayer):
         new_s = self.recurrent_unit.step(*rnn_input_vars)
         return new_s
 
-    def output(self, x):
+    def compute_tensor(self, x):
         """
         :param x: 3d tensor (batch, time, hidden_size x 2)
         """

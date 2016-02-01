@@ -36,13 +36,13 @@ class ResetLayer(NeuralLayer):
         self.var = var
         self.output_dim = dim
 
-    def output(self, x):
+    def compute_tensor(self, x):
         return self.var
 
 
 class LogProbLayer(NeuralLayer):
 
-    def output(self, x):
+    def compute_tensor(self, x):
         prob = T.clip(x, EPSILON, 1.0 - EPSILON)
         log_prob = - T.log(prob)
         return log_prob

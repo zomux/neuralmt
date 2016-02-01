@@ -28,13 +28,13 @@ if __name__ == '__main__':
 
 
     # embedding
-    encoder_embed = WordEmbedding(args.word_embed, args.src_vocab_size).link(encoder).compute(src_var)
+    encoder_embed = WordEmbedding(args.word_embed, args.src_vocab_size).belongs_to(encoder).compute(src_var)
 
     # encoder
     forward_rnn_var = (GRU(args.hidden_size,input_type="sequence", output_type="sequence")
-                       .link(encoder).compute(encoder_embed))
+                       .belongs_to(encoder).compute(encoder_embed))
     backward_rnn_var = Chain(GRU(args.hidden_size, input_type="sequence", output_type="sequence", backward=True),
-                             Reverse3D()).link(encoder).compute(encoder_embed)
+                             Reverse3D()).belongs_to(encoder).compute(encoder_embed)
     encoder_output_var = Concatenate(axis=2).compute(forward_rnn_var, backward_rnn_var)
 
     # decoder
@@ -44,11 +44,11 @@ if __name__ == '__main__':
     seq_input_var = create_var(T.matrix('seq'), dim=args.hidden_size * 2, test_shape=[64, args.hidden_size * 2])
     state_var = create_var(T.matrix("s"), dim=args.hidden_size, test_shape=[64, args.hidden_size])
 
-    input_embed = WordEmbedding(args.word_embed, args.tgt_vocab_size).link(decoder).compute(last_token_var)
+    input_embed = WordEmbedding(args.word_embed, args.tgt_vocab_size).belongs_to(decoder).compute(last_token_var)
 
     recurrent_unit = GRU(args.hidden_size, input_type="sequence", output_type="sequence", additional_input_dims=[input_embed.dim()])
     attention_layer = SoftAttentionalLayer(recurrent_unit, test=True)
-    attention_layer.link(decoder).connect(args.hidden_size * 2)
+    attention_layer.belongs_to(decoder).initialize(args.hidden_size * 2)
 
     new_state = attention_layer.step({
         "UaH": T.dot(seq_input_var.tensor, attention_layer.Ua),
@@ -64,15 +64,15 @@ if __name__ == '__main__':
 
     expander_input_var = create_var(T.matrix("expander_input"), dim=args.hidden_size, test_shape=[64, args.hidden_size])
 
-    dense_var = Chain(Dense(600), Dense(args.tgt_vocab_size)).link(expander).compute(expander_input_var)
+    dense_var = Chain(Dense(600), Dense(args.tgt_vocab_size)).belongs_to(expander).compute(expander_input_var)
 
     expander_output_var = Chain(Softmax(), LogProbLayer()).compute(dense_var)
 
     ####
 
-    encoder_network = BasicNetwork(input_vars=[src_var], blocks=[encoder], output=encoder_output_var)
-    decoder_network = BasicNetwork(input_vars=[last_token_var, seq_input_var, state_var], blocks=[decoder], output=decoder_output_var)
-    expander_network = BasicNetwork(input_vars=[expander_input_var], blocks=[expander], output=expander_output_var)
+    encoder_network = BasicNetwork(input_dim=[src_var])
+    decoder_network = BasicNetwork(input_dim=[last_token_var, seq_input_var, state_var])
+    expander_network = BasicNetwork(input_dim=[expander_input_var])
 
     fill_parameters(args.model_path, [encoder_network, decoder_network, expander_network])
 
