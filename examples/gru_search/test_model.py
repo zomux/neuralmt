@@ -70,9 +70,9 @@ if __name__ == '__main__':
 
     ####
 
-    encoder_network = BasicNetwork(input_dim=[src_var])
-    decoder_network = BasicNetwork(input_dim=[last_token_var, seq_input_var, state_var])
-    expander_network = BasicNetwork(input_dim=[expander_input_var])
+    encoder_network = ComputationalGraph(input_dim=[src_var])
+    decoder_network = ComputationalGraph(input_dim=[last_token_var, seq_input_var, state_var])
+    expander_network = ComputationalGraph(input_dim=[expander_input_var])
 
     fill_parameters(args.model_path, [encoder_network, decoder_network, expander_network])
 

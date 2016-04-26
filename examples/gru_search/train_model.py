@@ -82,7 +82,7 @@ if __name__ == '__main__':
     cost = TMCostLayer(tgt_var, tgt_mask_var, args.tgt_vocab_size).compute(output_var)
 
 
-    model = BasicNetwork(input_dim=[src_var, src_mask_var])
+    model = ComputationalGraph(input_dim=[src_var, src_mask_var])
     model.training_callbacks.append(training_monitor)
 
     data = OnDiskDataset("/tmp/data_prefix_train.pkl",

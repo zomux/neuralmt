@@ -95,6 +95,7 @@ class SoftAttentionalLayer(NeuralLayer):
         """
         return {"UaH": T.dot(inputs, self.Ua)}
 
+    @neural_computation
     def set_feedback_callback(self, func, initial_feedback):
         """
         Set feedback callback.
