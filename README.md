@@ -13,7 +13,7 @@ A Neural Machine Translation framework for training large-scale networks on mult
 
 1. Clone neuralmt
 
-``
+```
 git clone https://github.com/zomux/neuralmt
 export PYTHONPATH="$PYTHONPATH:/path/to/neuralmt"
 ```
