@@ -64,7 +64,7 @@ Although the current framework for parallelism shall be extended to multiple mac
 # Some Results
 
 - WMT15 German-English task (using the model in the example)
--- BLEU: 21.29
--- Duration: 2.5 days with 3 Titan X GPUs
+ - BLEU: 21.29
+ - Duration: 2.5 days with 3 Titan X GPUs
 
 Raphael Shu, 2016
