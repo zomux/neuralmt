@@ -39,12 +39,12 @@ class SequentialDataBuilder(object):
         transformed_data = []
         for tokens in data:
             transformed_tokens = vocab.encode(tokens)
+            if reverse:
+                transformed_tokens.reverse()
             if additional_head:
                 transformed_tokens.insert(0, appending_head)
             if additional_tail:
                 transformed_tokens.append(appending_tail)
-            if reverse:
-                transformed_data.reverse()
             transformed_data.append(transformed_tokens)
         return transformed_data
     def truncate(self, data_list, source_len=50, target_len=None):
