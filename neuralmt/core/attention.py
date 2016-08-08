@@ -7,24 +7,25 @@ from deepy import *
 
 class SoftAttentionalLayer(NeuralLayer):
 
-    def __init__(self, recurrent_unit, exponential_weights=False, feedback_callback=None, initial_feedback=None):
+    def __init__(self, recurrent_unit, exponential_weights=False, feedback_callback=None, initial_feedback=None, sampling=False):
         """
         :type recurrent_unit: RecurrentLayer
         :param test: indicate if this is for the test time.
         """
         super(SoftAttentionalLayer, self).__init__("attention")
-        self.recurrent_unit = recurrent_unit
+        self.rnn = recurrent_unit
         self.exponential_weights = exponential_weights
         self._feedback_callback = feedback_callback
         self._initial_feedback = initial_feedback
+        self._sampling = sampling
 
     def prepare(self):
         """
         Initialize the parameters, they are named following the original paper.
         """
-        self.recurrent_unit.initialize(self.input_dim)
-        self.register_inner_layers(self.recurrent_unit)
-        self.output_dim = self.recurrent_unit.output_dim
+        self.rnn.initialize(self.input_dim)
+        self.register_inner_layers(self.rnn)
+        self.output_dim = self.rnn.output_dim
 
         self.Ua = self.create_weight(self.input_dim, self.output_dim, "ua")
         self.Wa = self.create_weight(self.output_dim, self.output_dim, "wa")
@@ -66,21 +67,26 @@ class SoftAttentionalLayer(NeuralLayer):
         x: (batch, time, input_dim)
         UaH: (batch, time, output_dim)
         """
-        feedback, s_prev, UaH, mask, inputs = map(step_inputs.get, ["feedback", self.recurrent_unit.main_state, "UaH", "mask", "inputs"])
+        feedback, s_prev, UaH, mask, inputs = map(step_inputs.get, ["feedback", self.rnn.main_state, "UaH", "mask", "inputs"])
 
         align_weights = self._align(s_prev, UaH, mask) # (batch, time)
+        if self._sampling:
+            align_weights = global_theano_rand.multinomial(pvals=align_weights, dtype='float32')
         context_matrix = T.sum(align_weights[:, :, None] * inputs, axis=1) # (batch, input_dim)
-        recurrent_inputs = self.recurrent_unit.get_step_inputs(context_matrix, additional_inputs=[feedback], states=step_inputs)
-        step_outputs = self.recurrent_unit.step(recurrent_inputs)
+        additional_inputs = [feedback] if feedback else []
+        recurrent_inputs = self.rnn.get_step_inputs(context_matrix, additional_inputs=additional_inputs, states=step_inputs)
+        step_outputs = self.rnn.step(recurrent_inputs)
         if self._feedback_callback:
-            new_feedback = self._feedback_callback(step_outputs[self.recurrent_unit.main_state])
+            new_feedback = self._feedback_callback(step_outputs[self.rnn.main_state])
             step_outputs["feedback"] = new_feedback
 
         return step_outputs
 
     @neural_computation
-    def get_step_inputs(self, input_var, state=None, feedback=None, **kwargs):
+    def get_step_inputs(self, input_var, state=None, feedback=None, states=None, **kwargs):
         state_map = {"inputs": input_var, "state": state, "feedback": feedback}
+        if states:
+            state_map.update(states)
         state_map.update(self.merge_inputs(input_var))
         state_map.update(kwargs)
         return state_map
@@ -108,7 +114,7 @@ class SoftAttentionalLayer(NeuralLayer):
         """
         :param inputs: 3d tensor (batch, time, hidden_size x 2 in bi-directional encoder)
         """
-        init_state_map = self.recurrent_unit.get_initial_states(inputs)
+        init_state_map = self.rnn.get_initial_states(inputs)
         sequences = {
             "feedback": feedback
         }

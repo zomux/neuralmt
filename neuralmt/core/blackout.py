@@ -34,16 +34,23 @@ class BlackOutCost(NeuralLayer):
         flat_y = y.reshape((flat_dim,))
         flat_x = x.reshape((flat_dim, -1))
         flat_mask = y_mask.reshape((flat_dim,))
+
+        output_m = T.dot(flat_x, self.W.T) + self.B # - (time*batch, vocab)
+
+        output_vec = output_m.flatten()
+
         # Sample negative words
         neg_samp_ids = T.cast((global_theano_rand.uniform((self.sample_size,)) * self.dict_len), 'int32')  # - (time*batch,)
         neg_samp_tokens = self.word_dict[neg_samp_ids]
         neg_samp_mask = T.neq(neg_samp_tokens, flat_y.reshape((flat_dim, 1)))  # - (time*batch, sample_size)
 
         # Positive output values
-        z_pos = T.batched_dot(self.W[flat_y], flat_x) + self.B[flat_y]  # - (time*batch,)
+        flat_y_off = T.arange(flat_dim) * self.vocab_size + flat_y
+        z_pos = output_vec[flat_y_off]  # - (time*batch,)
 
         # Negative output values
-        z_neg = T.dot(flat_x, self.W[neg_samp_tokens].T) + self.B[neg_samp_tokens]  # - (time*batch, sample_size)
+        neg_off = neg_samp_tokens + T.arange(flat_dim).reshape((-1, 1)) * self.vocab_size
+        z_neg = output_vec[neg_off]
 
         # BlackOut Cost
         ep_pos = self.word_dist[flat_y] * T.exp(z_pos)  # - (time*batch,)

@@ -64,6 +64,19 @@ class NeuralTranslator(object):
         self.config = config
         self._prepare()
 
+    def score(self, sentence, candidate):
+        ensemble_inputs = [component.get_tokens(sentence) for component in self.ensembles]
+        candidate_tokens = candidate.split(" ")
+        scoring_tokens = []
+        for w in candidate_tokens:
+            if w in self.target_vocab_map:
+                scoring_tokens.append(self.target_vocab_map[w])
+            else:
+                scoring_tokens.append(self.target_vocab_map["UNK"])
+        # scoring_tokens.append(self.config.target_vocab_size)
+        _, score = self._translate_core(ensemble_inputs, scoring_input=scoring_tokens)
+        return score
+
     def batch_score(self, input_path, output_path):
         """
         Score given translation results.
