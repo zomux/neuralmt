@@ -162,6 +162,19 @@ class NeuralTranslator(object):
         else:
             return None, None
 
+    def translate_nbest(self, sentence, beam_size=20, nbest=20):
+        ensemble_inputs = [component.get_tokens(sentence) for component in self.ensembles]
+        hyps = self._translate_core(ensemble_inputs, beam_size=beam_size, nbest=nbest)
+        # Special case
+        results = []
+        for result, score in hyps:
+            result_words = self._postprocess(sentence.split(" "), result)
+            if not result_words:
+                result_words.append("EMPTY")
+            output_line = " ".join(result_words)
+            results.append((output_line, score))
+        return results
+
     def _prepare(self):
         self.ensembles = [NeuralMTComponent(p, self.config) for p in self.config.paths()]
         logging.info("%d ensembles loaded" % len(self.ensembles))
@@ -172,7 +185,7 @@ class NeuralTranslator(object):
         for i, word in enumerate(self.target_vocab):
             self.target_vocab_map[word] = i
 
-    def _translate_core(self, ensemble_inputs, beam_size=20, scoring_input=None):
+    def _translate_core(self, ensemble_inputs, beam_size=20, scoring_input=None, nbest=0):
         hidden_size = self.config.hidden_size
         eol_token = self.target_vocab_map[self.config.end_token]
         sol_token = self.target_vocab_map[self.config.start_token]
@@ -231,14 +244,21 @@ class NeuralTranslator(object):
             # Save to hyps
             hyps = [(h[0], h[1] + [h[2]], h[3]) for h in new_hyps if h[2] != eol_token][:time_beam]
         # Sort final_hyps
-        if not final_hyps:
-            result = []
-            score = 999
+        if nbest > 0:
+            if not final_hyps:
+                return []
+            else:
+                final_hyps.sort(key=lambda h: h[1])
+                return final_hyps[:nbest]
         else:
-            final_hyps.sort(key=lambda h: h[1])
-            result = final_hyps[0][0]
-            score = final_hyps[0][1]
-        return result, score
+            if not final_hyps:
+                result = []
+                score = 999
+            else:
+                final_hyps.sort(key=lambda h: h[1])
+                result = final_hyps[0][0]
+                score = final_hyps[0][1]
+            return result, score
 
     def _postprocess(self, src_words, result, mark_unk=False):
         result_words = []

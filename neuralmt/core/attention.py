@@ -110,11 +110,15 @@ class SoftAttentionalLayer(NeuralLayer):
         self._feedback_callback = func
         self._initial_feedback = initial_feedback
 
-    def compute_tensor(self, inputs, mask=None, feedback=None, steps=None):
+    def compute_tensor(self, inputs, mask=None, feedback=None, steps=None, init_states=None):
         """
         :param inputs: 3d tensor (batch, time, hidden_size x 2 in bi-directional encoder)
         """
         init_state_map = self.rnn.get_initial_states(inputs)
+        if init_states:
+            for name, val in init_states.items():
+                if name in init_state_map:
+                    init_state_map[name] = val
         sequences = {
             "feedback": feedback
         }

@@ -73,14 +73,18 @@ class SequentialDataBuilder(object):
         batches = []
         masks = []
         max_lens = []
+        is_scalar = type(data[0]) in [int, float]
         for i in range(0, len(data), batch_size):
             sub_data = data[i: i + batch_size]
-            new_batch, new_mask = self._pad_batch(sub_data, pad_value, output_mask, fix_size=fix_size)
-            batches.append(new_batch)
-            if output_mask:
-                masks.append(new_mask)
-            if output_max_lens:
-                max_lens.append(max(map(len, sub_data)))
+            if is_scalar:
+                batches.append(sub_data)
+            else:
+                new_batch, new_mask = self._pad_batch(sub_data, pad_value, output_mask, fix_size=fix_size)
+                batches.append(new_batch)
+                if output_mask:
+                    masks.append(new_mask)
+                if output_max_lens:
+                    max_lens.append(max(map(len, sub_data)))
         if not output_mask:
             masks = None
 
