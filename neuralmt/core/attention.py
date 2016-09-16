@@ -51,11 +51,17 @@ class SoftAttentionalLayer(NeuralLayer):
         if self.exponential_weights:
             aligns = T.exp(aligns - T.max(aligns, axis=1)[None, :].T)
             aligns += EPSILON
+        # if mask:
+        #     if aligns.ndim == 3:
+        #         aligns *= mask[None, :]
+        #     else:
+        #         aligns *= mask
         if mask:
+            mask = (1 - mask) * -99.00
             if aligns.ndim == 3:
-                aligns *= mask[None, :]
+                aligns += mask[None, :]
             else:
-                aligns *= mask
+                aligns += mask
         aligns = T.nnet.softmax(aligns)
         return aligns
 
