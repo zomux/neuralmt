@@ -55,7 +55,8 @@ class SequentialDataBuilder(object):
         if not target_len:
             target_len = source_len
         count_before_truncate = len(data_list[0])
-        transformed_data_list = filter(lambda p: len(p[0]) <= source_len and len(p[1]) <= target_len,
+        transformed_data_list = filter(lambda p: (not hasattr(p[0], "__len__") or len(p[0]) <= source_len) \
+                                                 and (not hasattr(p[1], "__len__") or len(p[1]) <= target_len),
                                        zip(*data_list))
         logging.info("truncated data: %d -> %d" % (count_before_truncate, len(transformed_data_list)))
         return list(zip(*transformed_data_list))
