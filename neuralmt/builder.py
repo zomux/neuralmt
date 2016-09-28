@@ -56,8 +56,7 @@ class SequentialDataBuilder(object):
             target_len = source_len
         count_before_truncate = len(data_list[0])
         transformed_data_list = filter(lambda p: (not hasattr(p[0], "__len__") or len(p[0]) <= source_len) \
-                                                 and (not hasattr(p[1], "__len__") or len(p[1]) <= target_len),
-                                       zip(*data_list))
+                                                  and (not hasattr(p[1], "__len__") or len(p[1]) <= target_len), zip(*data_list))
         logging.info("truncated data: %d -> %d" % (count_before_truncate, len(transformed_data_list)))
         return list(zip(*transformed_data_list))
 
@@ -105,7 +104,14 @@ class SequentialDataBuilder(object):
             for i in range(len(batch)):
                 mask.append([1] * len(batch[i]) + [0] * (max_len - len(batch[i])))
             mask = np.array(mask, dtype="float32")
-        new_batch = np.array(list(izip(*izip_longest(*batch, fillvalue=pad_value))))
+        if fix_size:
+            new_batch = []
+            for i in range(len(batch)):
+                new_row = list(batch[i]) + [pad_value] * (max_len - len(batch[i]))
+                new_batch.append(new_row)
+            new_batch = np.array(new_batch)
+        else:
+            new_batch = np.array(list(izip(*izip_longest(*batch, fillvalue=pad_value))))
         return new_batch, mask
 
     def dump(self, data_list, file_prefix, valid_batches=None, shuffle=True):
