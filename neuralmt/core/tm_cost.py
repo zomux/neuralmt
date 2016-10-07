@@ -19,7 +19,7 @@ class TMCostLayer(NeuralLayer):
         self.target_size = target_size
         self.cost_map = cost_map
 
-    def compute_tensor(self, x):
+    def compute_tensor(self, x, without_softmax=False):
         """
         :param x: 3d tensor (batch, time, vocab)
         """
