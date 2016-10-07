@@ -16,10 +16,10 @@ counter = 0
 
 if __name__ == '__main__':
     ap = ArgumentParser()
-    ap.add_argument("--model_path", default="{}/models/wmt15_de-en.uncompressed.npz".format(WMT_ROOT))
-    ap.add_argument("--word_embed", default=600, type=int)
-    ap.add_argument("--src_vocab_size", default=50000, type=int)
-    ap.add_argument("--tgt_vocab_size", default=50000, type=int)
+    ap.add_argument("--model_path", default="{}/models/model1.uncompressed.npz".format(WMT_ROOT))
+    ap.add_argument("--word_embed", default=1000, type=int)
+    ap.add_argument("--src_vocab_size", default=80000, type=int)
+    ap.add_argument("--tgt_vocab_size", default=40000, type=int)
     ap.add_argument("--hidden_size", default=1000, type=int)
     args = ap.parse_args()
 
@@ -71,8 +71,8 @@ if __name__ == '__main__':
                                blocks=[encoder, decoder, expander],
                                cost=cost)
 
-    data = OnDiskDataset("{}/wmt15.de-en1_train.pkl".format(WMT_ROOT),
-                         valid_path="{}/wmt15.de-en1_valid.pkl".format(WMT_ROOT),
+    data = OnDiskDataset("{}/aspec.enja1_train.pkl".format(WMT_ROOT),
+                         valid_path="{}/aspec.enja1_valid.pkl".format(WMT_ROOT),
                          cached=True, shuffle_memory=False)
 
     # Train
@@ -81,6 +81,6 @@ if __name__ == '__main__':
                        "patience": 20}
 
     trainer = MultiGPUTrainer(model, training_config, method='sgd',
-                              learning_rate=1.0, step_len=5)
+                              learning_rate=1.0, step_len=10)
 
     trainer.run(data)
