@@ -81,6 +81,6 @@ if __name__ == '__main__':
                        "patience": 20}
 
     trainer = MultiGPUTrainer(model, training_config, method='sgd',
-                              learning_rate=1.0, step_len=20)
+                              learning_rate=1.0, step_len=5)
 
     trainer.run(data)
