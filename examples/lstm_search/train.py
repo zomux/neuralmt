@@ -58,7 +58,7 @@ if __name__ == '__main__':
     recurrent_unit = LSTM(args.hidden_size, input_type="sequence", output_type="sequence", additional_input_dims=[args.word_embed])
 
     attention_layer = SoftAttentionalLayer(recurrent_unit)
-    attention_var = attention_layer.belongs_to(decoder).compute(hidden_layer, mask=src_mask_var, feedback=second_input, steps=tgt_var.shape(1))
+    attention_var = attention_layer.belongs_to(decoder).compute(hidden_layer, mask=src_mask_var, feedback=second_input, steps=tgt_var.shape[1])
 
     # expander
     output_var = Chain(Dense(600), Dense(args.tgt_vocab_size)).belongs_to(expander).compute(attention_var)
