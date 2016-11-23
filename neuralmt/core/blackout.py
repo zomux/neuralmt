@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from deepy import *
+from deepy.import_all import *
 
 class BlackOutCost(NeuralLayer):
 
@@ -64,7 +64,7 @@ class BlackOutCost(NeuralLayer):
         cost = T.sum(cost_vec * flat_mask) / T.sum(flat_mask)
         return -cost
 
-    def compute_test_tesnor(self, x, y, y_mask):
+    def compute_tensor(self, x, y, y_mask):
         """
         x: (time, batch, hidden_size)
         y: (time, batch)

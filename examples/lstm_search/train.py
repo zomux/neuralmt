@@ -6,7 +6,7 @@ assert WMT_ROOT
 
 from argparse import ArgumentParser
 
-from deepy import *
+from deepy.import_all import *
 from deepy.trainers.trainers import FineTuningAdaGradTrainer
 from neuralmt import TMCostLayer, SoftAttentionalLayer
 
@@ -23,10 +23,10 @@ if __name__ == '__main__':
     ap.add_argument("--hidden_size", default=1000, type=int)
     args = ap.parse_args()
 
-    src_var = create_var(T.imatrix(), test_shape=[64, 10], test_dtype="int32")
-    src_mask_var = create_var(T.matrix(), test_shape=[64, 10], test_dtype="float32")
-    tgt_var = create_var(T.imatrix(), test_shape=[64, 10], test_dtype="int32")
-    tgt_mask_var = create_var(T.matrix(), test_shape=[64, 10], test_dtype="float32")
+    src_var = graph.var(T.imatrix(), test_shape=[64, 10])
+    src_mask_var = graph.var(T.matrix(), test_shape=[64, 10])
+    tgt_var = graph.var(T.imatrix(), test_shape=[64, 10])
+    tgt_mask_var = graph.var(T.matrix(), test_shape=[64, 10])
 
     encoder = Block()
     decoder = Block()
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     feedback_var = tgt_var.apply(lambda t: T.concatenate([T.ones((t.shape[0], 1), dtype="int32"), t[:, :-1]], axis=1))
 
     tgt_embed_layer = WordEmbedding(args.word_embed, args.tgt_vocab_size)
-    tgt_embed_layer.initialize(1)
+    tgt_embed_layer.init(1)
 
     second_input = tgt_embed_layer.belongs_to(decoder).compute(feedback_var, mask=tgt_mask_var)
 
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     cost = TMCostLayer(tgt_var, tgt_mask_var, args.tgt_vocab_size).compute(output_var)
 
 
-    model = ComputationalGraph(input_vars=[src_var, src_mask_var],
+    model = graph.compile(input_vars=[src_var, src_mask_var],
                                target_vars=[tgt_var, tgt_mask_var],
                                blocks=[encoder, decoder, expander],
                                cost=cost)

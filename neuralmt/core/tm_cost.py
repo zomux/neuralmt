@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from deepy import *
+import deepy as D
+import deepy.tensor as T
+import deepy.layers as L
 
-class TMCostLayer(NeuralLayer):
+class TMCostLayer(L.NeuralLayer):
 
     def __init__(self, target, mask, target_size, cost_map = None):
         """
@@ -36,7 +38,7 @@ class TMCostLayer(NeuralLayer):
         target_index_vector =  T.arange(target_vector.shape[0]) * self.target_size + target_vector
 
         prob_vector = result_vector[target_index_vector]
-        prob_vector = T.clip(prob_vector, EPSILON, 1.0 - EPSILON)
+        prob_vector = T.clip(prob_vector, D.env.EPSILON, 1.0 - D.env.EPSILON)
         log_prob_vector = - T.log(prob_vector) * flat_mask
         if self.cost_map:
             log_prob_vector *= self.cost_map.flatten()

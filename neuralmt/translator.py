@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from deepy import *
+from deepy.import_all import *
 from config import NeuralMTConfiguration, NeuralMTPath
 
 import pickle

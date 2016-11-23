@@ -4,7 +4,7 @@
 import numpy as np
 from itertools import izip, izip_longest
 from vocab import NeuralVocab
-from deepy import StreamPickler
+from deepy.utils import StreamPickler
 import random
 
 import logging
@@ -79,7 +79,7 @@ class SequentialDataBuilder(object):
             if is_scalar:
                 batches.append(sub_data)
             else:
-                new_batch, new_mask = self._pad_batch(sub_data, pad_value, output_mask, fix_size=fix_size)
+                new_batch, new_mask = self.pad_batch(sub_data, pad_value, output_mask, fix_size=fix_size)
                 batches.append(new_batch)
                 if output_mask:
                     masks.append(new_mask)
@@ -93,7 +93,7 @@ class SequentialDataBuilder(object):
         else:
             return batches, masks
 
-    def _pad_batch(self, batch, pad_value, output_mask, fix_size=None):
+    def pad_batch(self, batch, pad_value, output_mask, fix_size=None):
         if fix_size:
             max_len = fix_size
         else:

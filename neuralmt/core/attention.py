@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import deepy as D
+from deepy.import_all import *
+from deepy.core import neural_computation
+import deepy.layers as L
 
-from deepy import *
 
-
-class SoftAttentionalLayer(NeuralLayer):
+class SoftAttentionalLayer(L.NeuralLayer):
 
     def __init__(self, recurrent_unit, exponential_weights=False, feedback_callback=None, initial_feedback=None, sampling=False):
         """
@@ -23,7 +25,7 @@ class SoftAttentionalLayer(NeuralLayer):
         """
         Initialize the parameters, they are named following the original paper.
         """
-        self.rnn.initialize(self.input_dim)
+        self.rnn.init(self.input_dim)
         self.register_inner_layers(self.rnn)
         self.output_dim = self.rnn.output_dim
 
@@ -31,7 +33,7 @@ class SoftAttentionalLayer(NeuralLayer):
         self.Wa = self.create_weight(self.output_dim, self.output_dim, "wa")
         self.Va = self.create_weight(suffix="va", shape=(self.output_dim,))
         self.register_parameters(self.Va, self.Wa, self.Ua)
-        self.tanh = build_activation('tanh')
+        self.tanh = get_activation('tanh')
 
     def _align(self, s_prev, UaH, mask=None):
         """

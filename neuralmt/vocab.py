@@ -71,3 +71,6 @@ class NeuralVocab(object):
 
     def size(self):
         return len(self._vocab)
+
+    def get_list(self):
+        return self._vocab

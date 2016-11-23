@@ -8,7 +8,7 @@ assert WMT_ROOT
 logging.basicConfig(level=logging.INFO)
 from argparse import ArgumentParser
 
-from deepy import *
+from deepy.import_all import *
 from neuralmt import SoftAttentionalLayer, LogProbLayer, NeuralMTConfiguration, NeuralTranslator
 
 theano.config.compute_test_value = 'ignore'
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     ap.add_argument("--tgt_vocab", default=tgt_vocab)
     args = ap.parse_args()
 
-    src_var = create_var(T.imatrix(), test_shape=[64, 10], test_dtype="int32")
+    src_var = graph.var(T.imatrix(), test_shape=[64, 10], dtype="int32")
 
     encoder = Block()
 
@@ -47,16 +47,16 @@ if __name__ == '__main__':
     # decoder
     decoder = Block()
 
-    last_token_var = create_var(T.ivector("tok"), test_shape=[64], test_dtype="int32")
-    seq_input_var = create_var(T.matrix('seq'), dim=args.hidden_size * 2, test_shape=[64, args.hidden_size * 2])
-    state_var = create_var(T.matrix("s"), dim=args.hidden_size, test_shape=[64, args.hidden_size])
+    last_token_var = graph.var(T.ivector("tok"), test_shape=[64])
+    seq_input_var = graph.var(T.matrix('seq'), last_dim=args.hidden_size * 2, test_shape=[64, args.hidden_size * 2])
+    state_var = graph.var(T.matrix("s"), last_dim=args.hidden_size, test_shape=[64, args.hidden_size])
 
     input_embed = WordEmbedding(args.word_embed, args.tgt_vocab_size).belongs_to(decoder).compute(last_token_var)
 
     recurrent_unit = GRU(args.hidden_size, input_type="sequence", output_type="sequence",
                          additional_input_dims=[input_embed.dim()])
     attention_layer = SoftAttentionalLayer(recurrent_unit)
-    attention_layer.belongs_to(decoder).initialize(input_dim=args.hidden_size * 2)
+    attention_layer.belongs_to(decoder).init(input_dim=args.hidden_size * 2)
 
     step_parameters = attention_layer.get_step_inputs(seq_input_var, state=state_var, feedback=input_embed)
 
@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     expander = Block()
 
-    expander_input_var = create_var(T.matrix("expander_input"), dim=args.hidden_size, test_shape=[64, args.hidden_size])
+    expander_input_var = graph.var(T.matrix("expander_input"), last_dim=args.hidden_size, test_shape=[64, args.hidden_size])
 
     dense_var = Chain(Dense(600), Dense(args.tgt_vocab_size)).belongs_to(expander).compute(expander_input_var)
 
@@ -76,13 +76,13 @@ if __name__ == '__main__':
 
     ####
 
-    encoder_network = ComputationalGraph(input_vars=[src_var], blocks=[encoder], output=encoder_output_var)
-    decoder_network = ComputationalGraph(input_vars=[last_token_var, seq_input_var, state_var], blocks=[decoder],
+    encoder_network = graph.compile(input_vars=[src_var], blocks=[encoder], output=encoder_output_var)
+    decoder_network = graph.compile(input_vars=[last_token_var, seq_input_var, state_var], blocks=[decoder],
                                          output=decoder_output_var)
-    expander_network = ComputationalGraph(input_vars=[expander_input_var], blocks=[expander],
+    expander_network = graph.compile(input_vars=[expander_input_var], blocks=[expander],
                                           output=expander_output_var)
 
-    fill_parameters(args.model_path, [encoder_network, decoder_network, expander_network])
+    graph.fill_parameters(args.model_path, [encoder_network, decoder_network, expander_network])
 
     config = NeuralMTConfiguration(
         target_vocab=args.tgt_vocab,

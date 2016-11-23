@@ -1,7 +1,7 @@
 import numpy
 from collections import Counter
 from theano import tensor as T
-from deepy import NeuralLayer, EPSILON
+from deepy.import_all import NeuralLayer, EPSILON
 
 
 def bleu_stats(hypothesis, reference):
