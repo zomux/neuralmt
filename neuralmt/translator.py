@@ -185,6 +185,8 @@ class NeuralTranslator(object):
         for i, word in enumerate(self.target_vocab):
             self.target_vocab_map[word] = i
 
+
+
     def _translate_core(self, ensemble_inputs, beam_size=20, scoring_input=None, nbest=0):
         hidden_size = self.config.hidden_size
         eol_token = self.target_vocab_map[self.config.end_token]
@@ -204,7 +206,7 @@ class NeuralTranslator(object):
         hyps = [([np.zeros((hidden_size,), dtype="float32") for _ in ensemble_range], [sol_token], 0.)]
 
         for time in range(max_len):
-            time_beam = beam_size if time > 1 else beam_size * 3
+            time_beam = beam_size if time > 1 else beam_size * 1
             # state, tokens, new_token, sum of -log
             new_hyps = []
             # Run in batch mode
@@ -214,11 +216,13 @@ class NeuralTranslator(object):
                 for i in ensemble_range:
                     batch_state_list[i].append(states[i])
                 batch_last_token.append(tokens[-1])
-            batch_mixed_state_list = [self.ensembles[i].decoder.compute(batch_last_token, reps[i], batch_state_list[i]) for i in ensemble_range]
+            batch_mixed_state_list = [self.ensembles[i].decoder.compute(batch_last_token, reps[i], batch_state_list[i])
+                                      for i in ensemble_range]
             batch_new_state_list = [batch_mixed_state_list[i] for i in ensemble_range]
             batch_logprobs_list = [self.ensembles[i].expander.compute(batch_new_state_list[i]) for i in ensemble_range]
 
-            mean_batch_logprobs = sum([batch_logprobs_list[i] * ensemble_weights[i] for i in range(len(batch_logprobs_list))])
+            mean_batch_logprobs = sum(
+                [batch_logprobs_list[i] * ensemble_weights[i] for i in range(len(batch_logprobs_list))])
 
             # Sort hyps
             for i in range(len(hyps)):
@@ -240,7 +244,7 @@ class NeuralTranslator(object):
                 # print " ".join(map(lambda i: self.target_vocab[i], hyp[1] + [hyp[2]]))
                 if hyp[2] == eol_token:
                     tokens = hyp[1][1:]
-                    final_hyps.append((tokens, hyp[3] / len(tokens)))
+                    final_hyps.append((tokens, hyp[3] / len(tokens), hyp[0][0][-1] / len(hyp[1])))
             # Save to hyps
             hyps = [(h[0], h[1] + [h[2]], h[3]) for h in new_hyps if h[2] != eol_token][:time_beam]
         # Sort final_hyps
@@ -259,7 +263,6 @@ class NeuralTranslator(object):
                 result = final_hyps[0][0]
                 score = final_hyps[0][1]
             return result, score
-
     def _postprocess(self, src_words, result, mark_unk=False):
         result_words = []
         src_words = [w for w in src_words if w != "<s>"]
