@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from collections import Counter
+
 import numpy as np
 
-from neuralmt.vocab import NeuralVocab
-from collections import Counter
+from neuralmt.core.vocab import NeuralVocab
 
 def make_token_distribution(vocab_path, filepath):
     token_counter = Counter()

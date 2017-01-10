@@ -3,7 +3,7 @@
 
 from deepy.import_all import *
 
-class BlackOutCost(NeuralLayer):
+class BlackOutCost(L.NeuralLayer):
 
     def __init__(self, vocab_size, sample_size, word_dist):
         super(BlackOutCost, self).__init__("blackout_cost")
@@ -40,7 +40,7 @@ class BlackOutCost(NeuralLayer):
         output_vec = output_m.flatten()
 
         # Sample negative words
-        neg_samp_ids = T.cast((global_theano_rand.uniform((self.sample_size,)) * self.dict_len), 'int32')  # - (time*batch,)
+        neg_samp_ids = T.cast((D.env.global_theano_rand.uniform((self.sample_size,)) * self.dict_len), 'int32')  # - (time*batch,)
         neg_samp_tokens = self.word_dict[neg_samp_ids]
         neg_samp_mask = T.neq(neg_samp_tokens, flat_y.reshape((flat_dim, 1)))  # - (time*batch, sample_size)
 
@@ -56,7 +56,7 @@ class BlackOutCost(NeuralLayer):
         ep_pos = self.word_dist[flat_y] * T.exp(z_pos)  # - (time*batch,)
         ep_neg = self.word_dist[neg_samp_tokens] * T.exp(z_neg) * neg_samp_mask  # - (time*batch, sample_size)
 
-        nominator = ep_pos + T.sum(ep_neg, axis=1) + EPSILON
+        nominator = ep_pos + T.sum(ep_neg, axis=1) + D.env.EPSILON
         p_pos = ep_pos / nominator
         p_neg = ep_neg / nominator.dimshuffle(0, 'x')
 
@@ -84,7 +84,7 @@ class BlackOutCost(NeuralLayer):
         target_index_vector = T.arange(flat_y.shape[0]) * self.vocab_size + flat_y
 
         prob_vector = result_vector[target_index_vector]
-        prob_vector = T.clip(prob_vector, EPSILON, 1.0 - EPSILON)
+        prob_vector = T.clip(prob_vector, D.env.EPSILON, 1.0 - D.env.EPSILON)
         log_prob_vector = - T.log(prob_vector) * flat_mask
         cost = T.sum(log_prob_vector) / T.sum(flat_mask)
         return cost

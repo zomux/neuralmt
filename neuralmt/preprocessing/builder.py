@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import numpy as np
-from itertools import izip, izip_longest
-from vocab import NeuralVocab
-from deepy.utils import StreamPickler
-import random
-
 import logging
+import random
+from itertools import izip, izip_longest
+
+import numpy as np
+
+from deepy.utils import StreamPickler
+from neuralmt.core.vocab import NeuralVocab
+
 logging.basicConfig(level=logging.INFO)
 
 class SequentialDataBuilder(object):
@@ -47,6 +49,7 @@ class SequentialDataBuilder(object):
                 transformed_tokens.append(appending_tail)
             transformed_data.append(transformed_tokens)
         return transformed_data
+
     def truncate(self, data_list, source_len=50, target_len=None):
         """
         Truncate a list of data.

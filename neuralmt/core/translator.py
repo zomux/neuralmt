@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from deepy.import_all import *
-from config import NeuralMTConfiguration, NeuralMTPath
-
-import pickle
 import logging as loggers
+import pickle
+
+import numpy as np
+
+from neuralmt.core.config import NeuralMTConfiguration, NeuralMTPath
+
 logging = loggers.getLogger(__name__)
 
 class NeuralMTComponent(object):
@@ -20,6 +22,7 @@ class NeuralMTComponent(object):
         self._build()
 
     def _build(self):
+        self.hidden_size = self.mt_path.hidden_size
         self.encoder, self.decoder, self.expander = self._get_neural_components(self.mt_path)
         self.vocab = pickle.load(open(self.mt_path.vocab))
         self.vocab_map = {}
@@ -74,7 +77,7 @@ class NeuralTranslator(object):
             else:
                 scoring_tokens.append(self.target_vocab_map["UNK"])
         # scoring_tokens.append(self.config.target_vocab_size)
-        _, score = self._translate_core(ensemble_inputs, scoring_input=scoring_tokens)
+        _, score = self.beam_search(ensemble_inputs, scoring_tokens=scoring_tokens)
         return score
 
     def batch_score(self, input_path, output_path):
@@ -102,7 +105,7 @@ class NeuralTranslator(object):
                     scoring_tokens.append(self.target_vocab_map["UNK"])
             scoring_tokens.append(self.config.target_vocab_size)
             # score
-            _, score = self._translate_core(ensemble_inputs, scoring_input=scoring_tokens, beam_size=1)
+            _, score = self.beam_search(ensemble_inputs, scoring_tokens=scoring_tokens, beam_size=1)
             fresult.write("%f\n" % score)
         fresult.close()
 
@@ -123,17 +126,17 @@ class NeuralTranslator(object):
         # iterations
         n_total_lines = len(self.ensembles[0].inputs)
         for i in range(n_total_lines):
-            print "[S%d]" % (total_count + 1), self.ensembles[0].inputs[i]
+            print ("[S%d]" % (total_count + 1), self.ensembles[0].inputs[i])
             ensemble_inputs = [component.input_tokens[i] for component in self.ensembles]
-            result, score = self._translate_core(ensemble_inputs, beam_size=beam_size)
+            result, score = self.beam_search(ensemble_inputs, beam_size=beam_size)
             # Special case
             if not result:
                 logging.info("search with beam size 100")
-                result, score = self._translate_core(ensemble_inputs, beam_size=100)
+                result, score = self.beam_search(ensemble_inputs, beam_size=100)
             result_words = self._postprocess(self.ensembles[0].inputs[i].split(" "), result)
             if not result_words:
                 result_words.append("EMPTY")
-            print "[T:%.2f]" % score, " ".join(result_words)
+            print ("[T:%.2f]" % score, " ".join(result_words))
             output_line = " ".join(result_words) + "\n"
             if include_score:
                 output_line = "%f ||| %s" % (score, output_line)
@@ -141,9 +144,9 @@ class NeuralTranslator(object):
             total_count += 1
         # - #
         fresult.close()
-        print "Total count:", total_count
-        print "Mean BLEU: %.2f" % (total_bleu / total_count)
-        print "Mean smoothed BLEU: %.2f" % (total_smoothed_bleu / total_count)
+        print ("Total count:", total_count)
+        print ("Mean BLEU: %.2f" % (total_bleu / total_count))
+        print ("Mean smoothed BLEU: %.2f" % (total_smoothed_bleu / total_count))
 
     def translate(self, sentence, beam_size=20):
         """
@@ -151,7 +154,7 @@ class NeuralTranslator(object):
         :return: result, score
         """
         ensemble_inputs = [component.get_tokens(sentence) for component in self.ensembles]
-        result, score = self._translate_core(ensemble_inputs, beam_size=beam_size)
+        result, score = self.beam_search(ensemble_inputs, beam_size=beam_size)
         # Special case
         if result:
             result_words = self._postprocess(sentence.split(" "), result)
@@ -164,7 +167,7 @@ class NeuralTranslator(object):
 
     def translate_nbest(self, sentence, beam_size=20, nbest=20):
         ensemble_inputs = [component.get_tokens(sentence) for component in self.ensembles]
-        hyps = self._translate_core(ensemble_inputs, beam_size=beam_size, nbest=nbest)
+        hyps = self.beam_search(ensemble_inputs, beam_size=beam_size, nbest=nbest)
         # Special case
         results = []
         for result, score in hyps:
@@ -185,84 +188,94 @@ class NeuralTranslator(object):
         for i, word in enumerate(self.target_vocab):
             self.target_vocab_map[word] = i
 
-
-
-    def _translate_core(self, ensemble_inputs, beam_size=20, scoring_input=None, nbest=0):
-        hidden_size = self.config.hidden_size
+    def beam_search(self, ensemble_inputs, beam_size=20, scoring_tokens=None, nbest=0):
         eol_token = self.target_vocab_map[self.config.end_token]
         sol_token = self.target_vocab_map[self.config.start_token]
         ensemble_weights = [p.weight for p in self.config.paths()]
         ensemble_weights = np.array(ensemble_weights) / np.sum(ensemble_weights)
-        if scoring_input:
-            max_len = len(scoring_input)
+        if scoring_tokens:
+            max_len = len(scoring_tokens)
         else:
             max_len = min(max(10, int(ensemble_inputs[0].shape[0] * 3)), 100)
         ensemble_count = len(ensemble_inputs)
         ensemble_range = range(ensemble_count)
-        reps = [self.ensembles[i].encoder.compute([ensemble_inputs[i]])[0] for i in ensemble_range]
+        ensemble_encoder_outputs = [self.ensembles[i].encoder.compute([ensemble_inputs[i]]) for i in ensemble_range]
+        # Pick the first one in the batch
+        for encoder_outputs in ensemble_encoder_outputs:
+            for k in encoder_outputs:
+                encoder_outputs[k] = encoder_outputs[k][0]
+
         # hyp: tokens, sum of -log
         final_hyps = []
         # hyp: state, tokens, sum of -log
-        hyps = [([np.zeros((hidden_size,), dtype="float32") for _ in ensemble_range], [sol_token], 0.)]
+        hyps = [{
+            "states": [np.zeros((self.ensembles[i].hidden_size,), dtype="float32") for i in ensemble_range],
+            "tokens": [sol_token],
+            "logp": 0.
+        }]
 
-        for time in range(max_len):
-            time_beam = beam_size if time > 1 else beam_size * 1
+        for t in range(max_len):
             # state, tokens, new_token, sum of -log
             new_hyps = []
             # Run in batch mode
             batch_state_list = [[] for _ in ensemble_range]
             batch_last_token = []
-            for states, tokens, _ in hyps:
+            for hyp in hyps:
                 for i in ensemble_range:
-                    batch_state_list[i].append(states[i])
-                batch_last_token.append(tokens[-1])
-            batch_mixed_state_list = [self.ensembles[i].decoder.compute(batch_last_token, reps[i], batch_state_list[i])
-                                      for i in ensemble_range]
-            batch_new_state_list = [batch_mixed_state_list[i] for i in ensemble_range]
-            batch_logprobs_list = [self.ensembles[i].expander.compute(batch_new_state_list[i]) for i in ensemble_range]
+                    batch_state_list[i].append(hyp["states"][i])
+                batch_last_token.append(hyp["tokens"][-1])
+            batch_new_state_list = []
+            for i in ensemble_range:
+                decoder_inputs = [t, batch_state_list[i], batch_last_token] + [p[1] for p in sorted(ensemble_encoder_outputs[i].items())]
+                batch_new_state_list.append(self.ensembles[i].decoder.compute(*decoder_inputs))
+            batch_logprobs_list = [- np.log(self.ensembles[i].expander.compute(batch_new_state_list[i])) for i in ensemble_range]
 
             mean_batch_logprobs = sum(
                 [batch_logprobs_list[i] * ensemble_weights[i] for i in range(len(batch_logprobs_list))])
 
             # Sort hyps
-            for i in range(len(hyps)):
-                states, tokens, prev_logprob = hyps[i]
+            for i, hyp in enumerate(hyps):
                 new_states = [batch_new_state[i] for batch_new_state in batch_new_state_list]
-                logprobs = mean_batch_logprobs[i] + prev_logprob
-                if scoring_input:
-                    best_indices = [scoring_input[time]]
+                logprobs = mean_batch_logprobs[i] + hyp["logp"]
+                if scoring_tokens:
+                    best_indices = [scoring_tokens[t]]
                 else:
-                    if time_beam > len(logprobs):
-                        time_beam = int(len(logprobs) * 0.8)
-                    best_indices = sorted(np.argpartition(logprobs, time_beam)[:time_beam], key=lambda x: logprobs[x])
+                    best_indices = sorted(np.argpartition(logprobs, beam_size)[:beam_size], key=lambda x: logprobs[x])
                 for idx in best_indices:
-                    new_hyps.append((new_states, tokens, idx, logprobs[idx]))
-            new_hyps.sort(key=lambda h: h[-1])
+                    new_hyps.append({
+                        "states": new_states,
+                        "tokens": hyp["tokens"] + [idx],
+                        "logp": logprobs[idx]
+                    })
+            new_hyps.sort(key=lambda h: h["logp"])
             # Get final hyps
-            for i in range(min(time_beam * 2, len(new_hyps))):
+            for i in range(len(new_hyps)):
                 hyp = new_hyps[i]
-                # print " ".join(map(lambda i: self.target_vocab[i], hyp[1] + [hyp[2]]))
-                if hyp[2] == eol_token:
-                    tokens = hyp[1][1:]
-                    final_hyps.append((tokens, hyp[3] / len(tokens), hyp[0][0][-1] / len(hyp[1])))
-            # Save to hyps
-            hyps = [(h[0], h[1] + [h[2]], h[3]) for h in new_hyps if h[2] != eol_token][:time_beam]
+                if hyp["tokens"][-1] == eol_token:
+                    tokens = hyp["tokens"][1:-1]
+                    final_hyps.append({
+                        "tokens": tokens,
+                        "logp": hyp["logp"] / len(tokens)
+                    })
+            # Update hyps
+            hyps = [h for h in new_hyps if h["tokens"][-1] != eol_token][:beam_size]
         # Sort final_hyps
         if nbest > 0:
             if not final_hyps:
                 return []
             else:
-                final_hyps.sort(key=lambda h: h[1])
+                final_hyps.sort(key=lambda h: h["logp"])
                 return final_hyps[:nbest]
         else:
             if not final_hyps:
                 result = []
                 score = 999
             else:
-                final_hyps.sort(key=lambda h: h[1])
-                result = final_hyps[0][0]
-                score = final_hyps[0][1]
+                final_hyps.sort(key=lambda h: h["logp"])
+                result = final_hyps[0]["tokens"]
+                score = final_hyps[0]["logp"]
             return result, score
+
     def _postprocess(self, src_words, result, mark_unk=False):
         result_words = []
         src_words = [w for w in src_words if w != "<s>"]
