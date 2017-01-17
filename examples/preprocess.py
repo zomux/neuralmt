@@ -2,8 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import os
-WMT_ROOT = os.environ["WMT_ROOT"]
-assert WMT_ROOT
+if "MT_ROOT" not in os.environ:
+    raise Exception("Environment variable MT_ROOT is not found.")
+MT_ROOT = os.environ["MT_ROOT"]
+MODEL_ROOT = "{}/models".format(MT_ROOT)
+
+if not os.path.exists(MODEL_ROOT):
+    os.mkdir(MODEL_ROOT)
 
 from stream import *
 from neuralmt import SequentialDataBuilder, NeuralVocab
@@ -11,21 +16,21 @@ from neuralmt import SequentialDataBuilder, NeuralVocab
 import logging
 logging.basicConfig(level=logging.INFO)
 
-source_path = "{}/text/wmt15.de-en.en".format(WMT_ROOT)
-target_path = "{}/text/wmt15.de-en.de".format(WMT_ROOT)
+source_path = "{}/text/comtrans.en".format(MT_ROOT)
+target_path = "{}/text/comtrans.de".format(MT_ROOT)
 
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 if __name__ == '__main__':
     logging.info("making vocabulary")
     # Make vocab for de
     vocab_de = NeuralVocab()
-    vocab_de.build(source_path, limit=50 * 1000)
-    vocab_de.save(os.path.join(WMT_ROOT, "models/wmt15.de-en.de50k.vocab"))
+    vocab_de.build(target_path, limit=50 * 1000)
+    vocab_de.save(os.path.join(MODEL_ROOT, "comtrans_de.vocab"))
     # Make vocab for en
     vocab_en = NeuralVocab()
-    vocab_en.build(target_path, limit=50 * 1000)
-    vocab_en.save(os.path.join(WMT_ROOT, "models/wmt15.de-en.en50k.vocab"))
+    vocab_en.build(source_path, limit=50 * 1000)
+    vocab_en.save(os.path.join(MODEL_ROOT, "comtrans_en.vocab"))
     # Read data
     logging.info("read raw data")
     en_data = open(source_path).readlines() >> map(str.strip) >> list
@@ -43,17 +48,19 @@ if __name__ == '__main__':
         de_len = float(de.count(" ") + 1)
         if en_len / de_len > 2 or de_len / en_len > 2:
             continue
+        if en_len > 50 or de_len > 50:
+            continue
         if en not in src_sent_pool:
-            reduced_paired_data.append((de, en))
+            reduced_paired_data.append((en, de))
             src_sent_pool.add(en)
     logging.info("reduced to {} data points".format(len(reduced_paired_data)))
     paired_data = reduced_paired_data
     # Transform vocabulary
     logging.info("transform vocabulary")
     builder = SequentialDataBuilder()
-    src_data = builder.transform("{}/models/wmt15.de-en.de50k.vocab".format(WMT_ROOT),
+    src_data = builder.transform("{}/comtrans_en.vocab".format(MODEL_ROOT),
                                  paired_data >> map(itemgetter(0)) >> map(methodcaller("split", " ")))
-    tgt_data = builder.transform("{}/models/wmt15.de-en.en50k.vocab".format(WMT_ROOT),
+    tgt_data = builder.transform("{}/comtrans_de.vocab".format(MODEL_ROOT),
                                  paired_data >> map(itemgetter(1)) >> map(methodcaller("split", " ")),
                                  additional_tail="</s>")
     # Truncate
@@ -67,4 +74,4 @@ if __name__ == '__main__':
     logging.info("%d batches in all" % len(src_batches))
     logging.info("dump data")
     builder.dump([src_batches, src_mask, tgt_batches, tgt_mask],
-                 "{}/text/wmt15.de-en".format(WMT_ROOT), valid_batches=50)
+                 "{}/text/comtrans".format(MT_ROOT), valid_batches=50)

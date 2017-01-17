@@ -13,6 +13,48 @@ from ..utils import SimpleBleuValidator
 
 D.debug.check_test_values()
 
+import deepy.layers as L
+#
+# class TMCostLayer(L.NeuralLayer):
+#
+#     def __init__(self, target, mask, target_size, cost_map=None):
+#         """
+#         :param target: 2d (batch, time)
+#         :type target: NeuralVariable
+#         :param mask:  2d (batch, time)
+#         :type mask: NeuralVariable
+#         :param target_size: scalar
+#         """
+#         super(TMCostLayer, self).__init__("tm_cost")
+#         self.target = target.tensor
+#         self.mask = mask.tensor
+#         self.target_size = target_size
+#         self.cost_map = cost_map
+#
+#     def compute_tensor(self, x):
+#         """
+#         :param x: 3d tensor (batch, time, vocab)
+#         """
+#         flat_mask = self.mask.flatten()
+#
+#         # Softmax
+#         shape = x.shape
+#         x = x.reshape((shape[0] * shape[1], shape[2])) * flat_mask[:, None]
+#         softmax_tensor = T.nnet.softmax(x)
+#
+#         # Get cost
+#         result_vector = softmax_tensor.flatten()
+#         target_vector = self.target.flatten()
+#         target_index_vector = T.arange(target_vector.shape[0]) * self.target_size + target_vector
+#
+#         prob_vector = result_vector[target_index_vector]
+#         prob_vector = T.clip(prob_vector, D.env.EPSILON, 1.0 - D.env.EPSILON)
+#         log_prob_vector = - T.log(prob_vector) * flat_mask
+#         if self.cost_map:
+#             log_prob_vector *= self.cost_map.flatten()
+#         cost = T.sum(log_prob_vector) / T.sum(flat_mask)
+#         return cost
+
 class EncoderDecoderModel(object):
     __metaclass__ = ABCMeta
 
@@ -22,7 +64,7 @@ class EncoderDecoderModel(object):
         self._src_vocab_size = src_vocab_size
         self._tgt_vocab_size = tgt_vocab_size
         self._decoder_states = decoder_states if decoder_states else["state", "cell"]
-        self._model_params = []
+        self._layers = []
         self.prepare()
 
     @abstractmethod
@@ -55,7 +97,7 @@ class EncoderDecoderModel(object):
         Expand decoder outputs to a vocab-size tensor.
         """
 
-    def decode_step_valid(self, vars):
+    def sample_step(self, vars):
         """
         Decode step for valiadation.
         """
@@ -65,7 +107,7 @@ class EncoderDecoderModel(object):
         vars.feedback = feedback_embed
         self.decode_step(vars)
 
-    def decode(self, encoder_outputs, target_vars, input_mask=None, valid=False):
+    def decode(self, encoder_outputs, target_vars, input_mask=None, sampling=False):
         """
         Decoding graph.
         """
@@ -91,8 +133,8 @@ class EncoderDecoderModel(object):
             outputs=decoder_outputs,
             non_sequences=non_sequences)
         with loop as vars:
-            if valid:
-                self.decode_step_valid(vars)
+            if sampling:
+                self.sample_step(vars)
             else:
                 self.decode_step(vars)
             vars.t += 1
@@ -111,8 +153,9 @@ class EncoderDecoderModel(object):
         output_vars = self.expand(decoder_outputs)
 
         cost = T.costs.cross_entropy(output_vars, tgt_vars, mask=tgt_mask)
+        # cost = TMCostLayer(tgt_vars, tgt_mask, self._tgt_vocab_size).compute(output_vars)
         accuracy = T.costs.accuracy(output_vars.argmax(axis=2), tgt_vars, mask=tgt_mask)
-        model_params = D.graph.new_block(*self._model_params)
+        model_params = D.graph.new_block(*self._layers)
         return D.graph.compile(input_vars=[src_vars, src_mask, tgt_vars, tgt_mask],
                                blocks=[model_params],
                                cost=cost,
@@ -124,8 +167,10 @@ class EncoderDecoderModel(object):
         """
         src_vars, src_mask, tgt_vars, tgt_mask = T.vars('imatrix', 'matrix', 'imatrix', 'matrix')
         encoder_outputs = MapDict(self.encode(src_vars, src_mask))
-        decoder_outputs = self.decode(encoder_outputs, tgt_vars, input_mask=src_mask, valid=True)
+        decoder_outputs = self.decode(encoder_outputs, tgt_vars, input_mask=src_mask)
+        sampled_outputs = self.decode(encoder_outputs, tgt_vars, input_mask=src_mask, sampling=True)
         output_vars = self.expand(decoder_outputs)
+        sampled_output_vars = self.expand(sampled_outputs)
 
         cost = T.costs.cross_entropy(output_vars, tgt_vars, mask=tgt_mask)
         accuracy = T.costs.accuracy(output_vars.argmax(axis=2), tgt_vars, mask=tgt_mask)
@@ -133,7 +178,7 @@ class EncoderDecoderModel(object):
                                cost=cost,
                                outputs={
                                    "acc": accuracy,
-                                   "outputs": output_vars.argmax(axis=2)
+                                   "outputs": sampled_output_vars.argmax(axis=2)
                                })
 
     def decoder_hidden_size(self):
@@ -155,6 +200,7 @@ class EncoderDecoderModel(object):
         t_var, feedback_var = T.vars('iscalar', 'ivector')
         state_var = T.var('matrix', test_shape=[3, len(self._decoder_states) * self._hidden_size])
         feedback_embeds = self.lookup_feedback(feedback_var)
+        feedback_embeds = T.ifelse(t_var == 0, feedback_embeds, feedback_embeds) # Trick to prevent warning of unused inputs
         vars = MapDict({
             "feedback": feedback_embeds,
             "t": t_var
@@ -184,7 +230,7 @@ class EncoderDecoderModel(object):
         return encoder_graph, decoder_graph, expander_graph
 
 
-    def get_trainer(self, method='adam', config=None, annealer=None, save_path=None):
+    def get_trainer(self, method='adam', config=None, annealer=None, valid_freq=1500, save_path=None, valid_criteria='bleu'):
         """
         Get a trainer.
         """
@@ -192,7 +238,7 @@ class EncoderDecoderModel(object):
             annealer = ScheduledLearningRateAnnealer(start_halving_at=3, end_at=6)
         return D.graph.get_trainer(self.compile_train(), method, config,
                                    annealer=annealer,
-                                   validator=SimpleBleuValidator(self.compile_valid(), freq=1500, save_path=save_path))
+                                   validator=SimpleBleuValidator(self.compile_valid(), freq=valid_freq, save_path=save_path, criteria=valid_criteria))
 
     def get_translator(self, source_vocab, target_vocab, model_path=None):
         """

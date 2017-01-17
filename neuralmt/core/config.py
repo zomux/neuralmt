@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from vocab import NeuralVocab
+
 class NeuralMTPath(object):
 
     def __init__(self, vocab, weight, encoder, decoder, expander, decoder_hidden_size=1000, input_path=None):
         self.input_path = input_path
         self.vocab = vocab
-        self.vocab_size = len(open(vocab).readlines())
+        self.vocab_size = NeuralVocab(vocab).size()
         self.weight = weight
         self.encoder = encoder
         self.decoder = decoder
@@ -22,7 +24,7 @@ class NeuralMTConfiguration(object):
 
     def __init__(self, target_vocab="", char_based=False, start_token="<s>", end_token="</s>"):
         self.target_vocab = target_vocab
-        self.target_vocab_size = len(open(target_vocab).readlines())
+        self.target_vocab_size = NeuralVocab(target_vocab).size()
         self.char_based = char_based
         self._paths = []
         self.end_token = end_token

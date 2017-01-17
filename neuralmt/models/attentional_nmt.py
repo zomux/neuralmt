@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import deepy as D
 import deepy.layers as L
 import deepy.tensor as T
 from encoder_decoder import EncoderDecoderModel
@@ -15,8 +16,12 @@ class AttentionalNMT(EncoderDecoderModel):
         self.first_state_nn = L.Dense(self._hidden_size, 'tanh')
         self.decoder_rnn = L.LSTM(self._hidden_size)
         self.attention = L.Attention(self._hidden_size, input_dim=self._hidden_size * 2)
-        self.expander_nn = L.Chain(L.Dense(600), L.Dense(self._tgt_vocab_size))
-        self._model_params = [
+        if self._hidden_size >= 1000:
+            # Approx layer
+            self.expander_nn = L.Chain(L.Dense(600), L.Dense(self._tgt_vocab_size))
+        else:
+            self.expander_nn = L.Dense(self._tgt_vocab_size)
+        self._layers = [
             self.src_embed_layer, self.tgt_embed_layer,
             self.forward_encoder, self.backward_encoder,
             self.first_state_nn,
@@ -29,7 +34,7 @@ class AttentionalNMT(EncoderDecoderModel):
 
         # Encoder
         forward_rnn_var = self.forward_encoder.compute(input_embeds, mask=input_mask)
-        backward_rnn_var = T.reverse(self.backward_encoder.compute(input_embeds, mask=input_mask), axis=1)
+        backward_rnn_var = T.reverse(self.backward_encoder.compute(input_embeds, mask=input_mask, backward=True), axis=1)
         encoder_states = T.concat([forward_rnn_var, backward_rnn_var], axis=2)
         precomputed_att_values = self.attention.precompute(encoder_states)
 
@@ -40,6 +45,7 @@ class AttentionalNMT(EncoderDecoderModel):
         }
 
     def decode_step(self, vars):
+
         context_vector = self.attention.compute_context_vector(vars.state, vars.encoder_states,
                                                                precomputed_values=vars.precomputed_values,
                                                                mask=vars.input_mask)

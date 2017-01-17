@@ -188,6 +188,7 @@ class NeuralTranslator(object):
         for i, word in enumerate(self.target_vocab):
             self.target_vocab_map[word] = i
 
+    # Old beam search code: https://gist.github.com/zomux/d49fd7c21ea46891cce0a60affe4ac88
     def beam_search(self, ensemble_inputs, beam_size=20, scoring_tokens=None, nbest=0):
         eol_token = self.target_vocab_map[self.config.end_token]
         sol_token = self.target_vocab_map[self.config.start_token]
@@ -229,7 +230,6 @@ class NeuralTranslator(object):
                 decoder_inputs = [t, batch_state_list[i], batch_last_token] + [p[1] for p in sorted(ensemble_encoder_outputs[i].items())]
                 batch_new_state_list.append(self.ensembles[i].decoder.compute(*decoder_inputs))
             batch_logprobs_list = [- np.log(self.ensembles[i].expander.compute(batch_new_state_list[i])) for i in ensemble_range]
-
             mean_batch_logprobs = sum(
                 [batch_logprobs_list[i] * ensemble_weights[i] for i in range(len(batch_logprobs_list))])
 

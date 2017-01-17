@@ -10,8 +10,12 @@ class SimpleBleuValidator(TrainingValidator):
     A simplified BLEU validator.
     """
 
-    def __init__(self, valid_model, freq=1500, save_path=None):
-        super(SimpleBleuValidator, self).__init__(valid_model, 'valid', freq=freq, save_path=save_path, criteria='bleu', smaller_is_better=False)
+    def __init__(self, valid_model, freq=1500, save_path=None, criteria='bleu'):
+        """
+        :param criteria: criteria for param selection: cost / bleu / mixed
+        """
+        smaller_is_better = False if criteria == 'bleu' else True
+        super(SimpleBleuValidator, self).__init__(valid_model, 'valid', freq=freq, save_path=save_path, criteria=criteria, smaller_is_better=smaller_is_better)
 
     def run(self, data_x):
         output_vars = self.compute(*data_x)
@@ -23,4 +27,6 @@ class SimpleBleuValidator(TrainingValidator):
             out_tokens = output_vars.outputs[i, :target_len]
             bleus.append(smoothed_bleu(out_tokens, ref_tokens))
         output_vars.bleu = numpy.mean(bleus)
+        if self._criteria == 'mixed':
+            output_vars.mixed = output_vars.cost - output_vars.bleu
         return self._extract_costs(output_vars)
