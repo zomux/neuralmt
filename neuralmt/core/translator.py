@@ -148,6 +148,7 @@ class NeuralTranslator(object):
         print ("Mean BLEU: %.2f" % (total_bleu / total_count))
         print ("Mean smoothed BLEU: %.2f" % (total_smoothed_bleu / total_count))
 
+
     def translate(self, sentence, beam_size=20):
         """
         Translate one sentence.
