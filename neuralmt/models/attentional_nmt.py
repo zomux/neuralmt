@@ -15,7 +15,7 @@ class AttentionalNMT(EncoderDecoderModel):
         self.backward_encoder = L.LSTM(self._hidden_size)
         self.first_state_nn = L.Dense(self._hidden_size, 'tanh')
         self.decoder_rnn = L.LSTM(self._hidden_size)
-        self.attention = L.Attention(self._hidden_size, input_dim=self._hidden_size * 2)
+        self.attention = L.Attention(input_dim=self._hidden_size * 2, hidden_size=self._hidden_size)
         if self._hidden_size >= 1000:
             # Approx layer
             self.expander_nn = L.Chain(L.Dense(600), L.Dense(self._tgt_vocab_size))

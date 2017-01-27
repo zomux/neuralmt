@@ -58,12 +58,13 @@ import deepy.layers as L
 class EncoderDecoderModel(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, hidden_size=1000, embed_size=1000, src_vocab_size=80000, tgt_vocab_size=40000, decoder_states=None):
+    def __init__(self, hidden_size=1000, embed_size=1000, src_vocab_size=80000, tgt_vocab_size=40000, decoder_states=None, decoder_state_sizes=None):
         self._hidden_size = hidden_size
         self._embed_size = embed_size
         self._src_vocab_size = src_vocab_size
         self._tgt_vocab_size = tgt_vocab_size
         self._decoder_states = decoder_states if decoder_states else["state", "cell"]
+        self._decoder_state_sizes = decoder_state_sizes if decoder_state_sizes else [self._hidden_size] * len(self._decoder_states)
         self._layers = []
         self.prepare()
 
@@ -118,11 +119,11 @@ class EncoderDecoderModel(object):
 
         # Process initial states
         decoder_outputs = {"t": T.constant(0)}
-        for state_name in self._decoder_states:
+        for state_name, size in zip(self._decoder_states, self._decoder_state_sizes):
             if "init_{}".format(state_name) in encoder_outputs:
                 decoder_outputs[state_name] = encoder_outputs["init_{}".format(state_name)]
             else:
-                decoder_outputs[state_name] = T.zeros((batch_size, self._hidden_size))
+                decoder_outputs[state_name] = T.zeros((batch_size, size))
         # Process non-seqeuences
         non_sequences = {"input_mask": input_mask}
         for k, val in encoder_outputs.items():
@@ -182,7 +183,7 @@ class EncoderDecoderModel(object):
                                })
 
     def decoder_hidden_size(self):
-        return self._hidden_size * len(self._decoder_states)
+        return sum(self._decoder_state_sizes, 0)
 
     def load_params(self, path):
         self.compile_train().load_params(path)
@@ -198,7 +199,7 @@ class EncoderDecoderModel(object):
 
         # Decoder
         t_var, feedback_var = T.vars('iscalar', 'ivector')
-        state_var = T.var('matrix', test_shape=[3, len(self._decoder_states) * self._hidden_size])
+        state_var = T.var('matrix', test_shape=[3, self.decoder_hidden_size()])
         feedback_embeds = self.lookup_feedback(feedback_var)
         feedback_embeds = T.ifelse(t_var == 0, feedback_embeds, feedback_embeds) # Trick to prevent warning of unused inputs
         vars = MapDict({
@@ -208,7 +209,7 @@ class EncoderDecoderModel(object):
         first_encoder_outputs = MapDict([(k, v[0]) for (k, v) in encoder_outputs.items()])
 
         for i, state_name in enumerate(self._decoder_states):
-            state_val = state_var[:, self._hidden_size * i: self._hidden_size * (i + 1)]
+            state_val = state_var[:, sum(self._decoder_state_sizes[:i], 0): sum(self._decoder_state_sizes[:i + 1], 0)]
             if "init_{}".format(state_name) in first_encoder_outputs:
                 state_val = T.ifelse(t_var == 0, T.repeat(first_encoder_outputs["init_{}".format(state_name)][None, :], state_var.shape[0], axis=0), state_val)
             vars[state_name] = state_val
