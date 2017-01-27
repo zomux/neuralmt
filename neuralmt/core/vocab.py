@@ -19,10 +19,11 @@ class NeuralVocab(object):
         if vocab_path:
             self.load(vocab_path)
 
-    def build(self, txt_path, limit=None, special_tokens=None, delimiter=" "):
+    def build(self, txt_path, limit=None, special_tokens=None, char_level=False):
         vocab_counter = Counter()
         for line in open(txt_path).xreadlines():
-            words = line.strip().split(delimiter)
+            line = line.strip()
+            words = line if char_level else line.split(" ")
             vocab_counter.update(words)
         if special_tokens is None:
             special_tokens = DEFAULT_SPECIAL_TOKENS
