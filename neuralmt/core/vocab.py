@@ -23,7 +23,10 @@ class NeuralVocab(object):
         vocab_counter = Counter()
         for line in open(txt_path).xreadlines():
             line = line.strip()
-            words = line if char_level else line.split(" ")
+            if char_level:
+                words = [w.encode("utf-8") for w in line.decode("utf-8")]
+            else:
+                words = line.split(" ")
             vocab_counter.update(words)
         if special_tokens is None:
             special_tokens = DEFAULT_SPECIAL_TOKENS
