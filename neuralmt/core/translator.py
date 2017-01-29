@@ -36,10 +36,13 @@ class NeuralMTComponent(object):
             self.input_tokens = []
 
     def get_tokens(self, line):
-        if self.config.char_based:
-            src_words = list(line)
+        if isinstance(line, str):
+            if self.config.char_based:
+                src_words = list(line)
+            else:
+                src_words = line.split(" ")
         else:
-            src_words = line.split(" ")
+            src_words = line
         # src_words.insert(0, "<s>")
         src_tokens = []
         for w in src_words:
