@@ -70,9 +70,18 @@ class NeuralTranslator(object):
         self.config = config
         self._prepare()
 
+    def _split(self, sent):
+        """
+        Smart splitting function.
+        """
+        if isinstance(sent, str):
+            return sent.split(" ")
+        else:
+            return sent
+
     def score(self, sentence, candidate):
         ensemble_inputs = [component.get_tokens(sentence) for component in self.ensembles]
-        candidate_tokens = candidate.split(" ")
+        candidate_tokens = self._split(candidate)
         scoring_tokens = []
         for w in candidate_tokens:
             if w in self.target_vocab_map:
@@ -99,7 +108,7 @@ class NeuralTranslator(object):
             ensemble_inputs = [component.input_tokens[i] for component in self.ensembles]
             # get scoring input tokens
             scoring_result = scoring_results[i]
-            scoring_words = list(scoring_result) if self.config.char_based  else scoring_result.split(" ")
+            scoring_words = list(scoring_result) if self.config.char_based  else self._split(scoring_result)
             scoring_tokens = []
             for w in scoring_words:
                 if w in self.target_vocab_map:
@@ -136,7 +145,7 @@ class NeuralTranslator(object):
             if not result:
                 logging.info("search with beam size 100")
                 result, score = self.beam_search(ensemble_inputs, beam_size=100)
-            result_words = self._postprocess(self.ensembles[0].inputs[i].split(" "), result)
+            result_words = self._postprocess(self._split(self.ensembles[0].inputs[i]), result)
             if not result_words:
                 result_words.append("EMPTY")
             print ("[T:%.2f]" % score, " ".join(result_words))
@@ -161,7 +170,7 @@ class NeuralTranslator(object):
         result, score = self.beam_search(ensemble_inputs, beam_size=beam_size)
         # Special case
         if result:
-            result_words = self._postprocess(sentence.split(" "), result)
+            result_words = self._postprocess(self._split(sentence), result)
             if not result_words:
                 result_words.append("EMPTY")
             output_line = " ".join(result_words)
@@ -175,7 +184,7 @@ class NeuralTranslator(object):
         # Special case
         results = []
         for result, score in hyps:
-            result_words = self._postprocess(sentence.split(" "), result)
+            result_words = self._postprocess(self._split(sentence), result)
             if not result_words:
                 result_words.append("EMPTY")
             output_line = " ".join(result_words)
