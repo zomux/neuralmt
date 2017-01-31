@@ -99,13 +99,13 @@ class EncoderDecoderModel(object):
             else:
                 self.decode_step(vars)
             vars.t += 1
-        decoder_outputs = MapDict()
+        output_map = MapDict()
         for state_name in decoder_outputs:
             if loop.outputs[state_name].ndim == 2:
-                decoder_outputs[state_name] = loop.outputs[state_name].dimshuffle((1, 0))
+                output_map[state_name] = loop.outputs[state_name].dimshuffle((1, 0))
             else:
-                decoder_outputs[state_name] = loop.outputs[state_name].dimshuffle((1, 0, 2))
-        return decoder_outputs
+                output_map[state_name] = loop.outputs[state_name].dimshuffle((1, 0, 2))
+        return output_map
 
     def compile_train(self):
         """
