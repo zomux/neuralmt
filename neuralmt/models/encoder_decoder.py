@@ -103,8 +103,10 @@ class EncoderDecoderModel(object):
         for state_name in decoder_outputs:
             if loop.outputs[state_name].ndim == 2:
                 output_map[state_name] = loop.outputs[state_name].dimshuffle((1, 0))
-            else:
+            elif loop.outputs[state_name].ndim == 3:
                 output_map[state_name] = loop.outputs[state_name].dimshuffle((1, 0, 2))
+            else:
+                output_map[state_name] = loop.outputs[state_name]
         return output_map
 
     def compile_train(self):
