@@ -13,48 +13,6 @@ from ..utils import SimpleBleuValidator
 
 D.debug.check_test_values()
 
-import deepy.layers as L
-#
-# class TMCostLayer(L.NeuralLayer):
-#
-#     def __init__(self, target, mask, target_size, cost_map=None):
-#         """
-#         :param target: 2d (batch, time)
-#         :type target: NeuralVariable
-#         :param mask:  2d (batch, time)
-#         :type mask: NeuralVariable
-#         :param target_size: scalar
-#         """
-#         super(TMCostLayer, self).__init__("tm_cost")
-#         self.target = target.tensor
-#         self.mask = mask.tensor
-#         self.target_size = target_size
-#         self.cost_map = cost_map
-#
-#     def compute_tensor(self, x):
-#         """
-#         :param x: 3d tensor (batch, time, vocab)
-#         """
-#         flat_mask = self.mask.flatten()
-#
-#         # Softmax
-#         shape = x.shape
-#         x = x.reshape((shape[0] * shape[1], shape[2])) * flat_mask[:, None]
-#         softmax_tensor = T.nnet.softmax(x)
-#
-#         # Get cost
-#         result_vector = softmax_tensor.flatten()
-#         target_vector = self.target.flatten()
-#         target_index_vector = T.arange(target_vector.shape[0]) * self.target_size + target_vector
-#
-#         prob_vector = result_vector[target_index_vector]
-#         prob_vector = T.clip(prob_vector, D.env.EPSILON, 1.0 - D.env.EPSILON)
-#         log_prob_vector = - T.log(prob_vector) * flat_mask
-#         if self.cost_map:
-#             log_prob_vector *= self.cost_map.flatten()
-#         cost = T.sum(log_prob_vector) / T.sum(flat_mask)
-#         return cost
-
 class EncoderDecoderModel(object):
     __metaclass__ = ABCMeta
 
@@ -108,7 +66,7 @@ class EncoderDecoderModel(object):
         vars.feedback = feedback_embed
         self.decode_step(vars)
 
-    def decode(self, encoder_outputs, target_vars, input_mask=None, sampling=False):
+    def decode(self, encoder_outputs, target_vars, input_mask=None, sampling=False, extra_outputs=None):
         """
         Decoding graph.
         """
@@ -124,6 +82,8 @@ class EncoderDecoderModel(object):
                 decoder_outputs[state_name] = encoder_outputs["init_{}".format(state_name)]
             else:
                 decoder_outputs[state_name] = T.zeros((batch_size, size))
+        if extra_outputs:
+            decoder_outputs.update(extra_outputs)
         # Process non-seqeuences
         non_sequences = {"input_mask": input_mask}
         for k, val in encoder_outputs.items():
@@ -154,7 +114,6 @@ class EncoderDecoderModel(object):
         output_vars = self.expand(decoder_outputs)
 
         cost = T.costs.cross_entropy(output_vars, tgt_vars, mask=tgt_mask)
-        # cost = TMCostLayer(tgt_vars, tgt_mask, self._tgt_vocab_size).compute(output_vars)
         accuracy = T.costs.accuracy(output_vars.argmax(axis=2), tgt_vars, mask=tgt_mask)
         model_params = D.graph.new_block(*self._layers)
         return D.graph.compile(input_vars=[src_vars, src_mask, tgt_vars, tgt_mask],
@@ -229,7 +188,6 @@ class EncoderDecoderModel(object):
         expander_graph = D.graph.compile(input_vars=[decoder_state], output=prob)
 
         return encoder_graph, decoder_graph, expander_graph
-
 
     def get_trainer(self, method='adam', config=None, annealer=None, valid_freq=1500, save_path=None, valid_criteria='bleu'):
         """
