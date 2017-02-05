@@ -272,6 +272,8 @@ class NeuralTranslator(object):
                     })
             # Update hyps
             hyps = [h for h in new_hyps if h["tokens"][-1] != eol_token][:beam_size]
+            if not hyps:
+                break
         # Sort final_hyps
         if nbest > 0:
             if not final_hyps:
