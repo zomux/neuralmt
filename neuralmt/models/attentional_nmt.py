@@ -9,8 +9,8 @@ from encoder_decoder import EncoderDecoderModel
 class AttentionalNMT(EncoderDecoderModel):
 
     def prepare(self):
-        self.src_embed_layer = L.WordEmbedding(self._embed_size, self._src_vocab_size)
-        self.tgt_embed_layer = L.WordEmbedding(self._embed_size, self._tgt_vocab_size)
+        self.src_embed_layer = L.WordEmbedding(self._embed_size, self._src_vocab_size, on_cpu=self._embed_on_cpu)
+        self.tgt_embed_layer = L.WordEmbedding(self._embed_size, self._tgt_vocab_size, on_cpu=self._embed_on_cpu)
         self.forward_encoder = L.LSTM(self._hidden_size)
         self.backward_encoder = L.LSTM(self._hidden_size)
         self.first_state_nn = L.Dense(self._hidden_size, 'tanh')

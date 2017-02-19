@@ -16,11 +16,14 @@ D.debug.check_test_values()
 class EncoderDecoderModel(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, hidden_size=1000, embed_size=1000, src_vocab_size=80000, tgt_vocab_size=40000, decoder_states=None, decoder_state_sizes=None):
+    def __init__(self, hidden_size=1000, embed_size=1000, src_vocab_size=80000, tgt_vocab_size=40000,
+                 embed_on_cpu=False,
+                 decoder_states=None, decoder_state_sizes=None):
         self._hidden_size = hidden_size
         self._embed_size = embed_size
         self._src_vocab_size = src_vocab_size
         self._tgt_vocab_size = tgt_vocab_size
+        self._embed_on_cpu = embed_on_cpu
         self._decoder_states = decoder_states if decoder_states else["state", "cell"]
         self._decoder_state_sizes = decoder_state_sizes if decoder_state_sizes else [self._hidden_size] * len(self._decoder_states)
         self._layers = []
