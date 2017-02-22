@@ -26,6 +26,7 @@ class EncoderDecoderModel(object):
         self._embed_on_cpu = embed_on_cpu
         self._decoder_states = decoder_states if decoder_states else["state", "cell"]
         self._decoder_state_sizes = decoder_state_sizes if decoder_state_sizes else [self._hidden_size] * len(self._decoder_states)
+        self._decoder_updates = None
         self._layers = []
         self.prepare()
 
@@ -110,6 +111,8 @@ class EncoderDecoderModel(object):
                 output_map[state_name] = loop.outputs[state_name].dimshuffle((1, 0, 2))
             else:
                 output_map[state_name] = loop.outputs[state_name]
+        if loop.updates:
+            self._decoder_updates = decoder_outputs
         return output_map
 
     def compile_train(self):
@@ -127,7 +130,8 @@ class EncoderDecoderModel(object):
         return D.graph.compile(input_vars=[src_vars, src_mask, tgt_vars, tgt_mask],
                                blocks=[model_params],
                                cost=cost,
-                               monitors={"acc": accuracy})
+                               monitors={"acc": accuracy},
+                               updates=self._decoder_updates)
 
     def compile_valid(self):
         """
@@ -144,6 +148,7 @@ class EncoderDecoderModel(object):
         accuracy = T.costs.accuracy(output_vars.argmax(axis=2), tgt_vars, mask=tgt_mask)
         return D.graph.compile(input_vars=[src_vars, src_mask, tgt_vars, tgt_mask],
                                cost=cost,
+                               updates=self._decoder_updates,
                                outputs={
                                    "acc": accuracy,
                                    "outputs": sampled_output_vars.argmax(axis=2)
