@@ -26,7 +26,7 @@ class EncoderDecoderModel(object):
         self._embed_on_cpu = embed_on_cpu
         self._decoder_states = decoder_states if decoder_states else["state", "cell"]
         self._decoder_state_sizes = decoder_state_sizes if decoder_state_sizes else [self._hidden_size] * len(self._decoder_states)
-        self._decoder_updates = None
+        self._decoder_updates = []
         self._layers = []
         self.prepare()
 
@@ -112,13 +112,14 @@ class EncoderDecoderModel(object):
             else:
                 output_map[state_name] = loop.outputs[state_name]
         if loop.updates:
-            self._decoder_updates = decoder_outputs
+            self._decoder_updates.extend(loop.updates)
         return output_map
 
     def compile_train(self):
         """
         Get training graph.
         """
+        self._decoder_updates = []
         src_vars, src_mask, tgt_vars, tgt_mask = T.vars('imatrix', 'matrix', 'imatrix', 'matrix')
         encoder_outputs = MapDict(self.encode(src_vars, src_mask))
         decoder_outputs = self.decode(encoder_outputs, tgt_vars, input_mask=src_mask)
@@ -137,6 +138,7 @@ class EncoderDecoderModel(object):
         """
         Get validation graph.
         """
+        self._decoder_updates = []
         src_vars, src_mask, tgt_vars, tgt_mask = T.vars('imatrix', 'matrix', 'imatrix', 'matrix')
         encoder_outputs = MapDict(self.encode(src_vars, src_mask))
         decoder_outputs = self.decode(encoder_outputs, tgt_vars, input_mask=src_mask)
