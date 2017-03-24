@@ -183,7 +183,8 @@ class NeuralTranslator(object):
         hyps = self.beam_search(ensemble_inputs, beam_size=beam_size, nbest=nbest)
         # Special case
         results = []
-        for result, score in hyps:
+        for hyp in hyps:
+            result, score = hyp["tokens"], hyp["logp"]
             result_words = self._postprocess(self._split(sentence), result)
             if not result_words:
                 result_words.append("EMPTY")
