@@ -9,18 +9,18 @@ from encoder_decoder import EncoderDecoderModel
 class AttentionalNMT(EncoderDecoderModel):
 
     def prepare(self):
-        self.src_embed_layer = L.WordEmbedding(self._embed_size, self._src_vocab_size, on_cpu=self._embed_on_cpu)
-        self.tgt_embed_layer = L.WordEmbedding(self._embed_size, self._tgt_vocab_size, on_cpu=self._embed_on_cpu)
-        self.forward_encoder = L.LSTM(self._hidden_size)
-        self.backward_encoder = L.LSTM(self._hidden_size)
-        self.first_state_nn = L.Dense(self._hidden_size, 'tanh')
-        self.decoder_rnn = L.LSTM(self._hidden_size)
-        self.attention = L.Attention(input_dim=self._hidden_size * 2, hidden_size=self._hidden_size)
+        self.src_embed_layer = L.WordEmbedding(self._embed_size, self._src_vocab_size, on_cpu=self._embed_on_cpu).init(1)
+        self.tgt_embed_layer = L.WordEmbedding(self._embed_size, self._tgt_vocab_size, on_cpu=self._embed_on_cpu).init(1)
+        self.forward_encoder = L.LSTM(self._hidden_size).init(self._embed_size)
+        self.backward_encoder = L.LSTM(self._hidden_size).init(self._embed_size)
+        self.first_state_nn = L.Dense(self._hidden_size, 'tanh').init(self._hidden_size)
+        self.decoder_rnn = L.LSTM(self._hidden_size).init(self._hidden_size * 2 + self._embed_size)
+        self.attention = L.Attention(input_dim=self._hidden_size * 2, hidden_size=self._hidden_size).init(self._hidden_size)
         if self._hidden_size >= 1000:
             # Approx layer
-            self.expander_nn = L.Chain(L.Dense(600), L.Dense(self._tgt_vocab_size))
+            self.expander_nn = L.Chain(L.Dense(600), L.Dense(self._tgt_vocab_size)).init(self._hidden_size)
         else:
-            self.expander_nn = L.Dense(self._tgt_vocab_size)
+            self.expander_nn = L.Dense(self._tgt_vocab_size).init(self._hidden_size)
         self._layers = [
             self.src_embed_layer, self.tgt_embed_layer,
             self.forward_encoder, self.backward_encoder,
