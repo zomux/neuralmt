@@ -77,10 +77,11 @@ class EncoderDecoderModel(object):
         encoder_states = encoder_outputs.encoder_states
         batch_size = encoder_states.shape[0]
         feedbacks = T.concat([T.ones((batch_size, 1), dtype="int32"), target_vars[:, :-1]], axis=1)
+        feedbacks = T.clip(feedbacks, 0, 39999)
         feedback_embeds = self.lookup_feedback(feedbacks)
 
         # Process initial states
-        decoder_outputs = {"t": T.constant(0)}
+        decoder_outputs = {"t": T.constant(0, dtype="int32")}
         for state_name, size in zip(self._decoder_states, self._decoder_state_sizes):
             if "init_{}".format(state_name) in encoder_outputs:
                 decoder_outputs[state_name] = encoder_outputs["init_{}".format(state_name)]
