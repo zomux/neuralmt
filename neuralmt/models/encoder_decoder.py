@@ -195,7 +195,7 @@ class EncoderDecoderModel(object):
         decoder_graph = D.graph.compile(input_vars=decoder_inputs, output=state_output)
 
         # Expander
-        decoder_state = T.var('matrix', test_shape=[3, self._hidden_size])
+        decoder_state = T.var('matrix', test_shape=[3, sum(self._decoder_state_sizes)])
         decoder_outputs = MapDict()
         for i, state_name in enumerate(self._decoder_states):
             decoder_outputs[state_name] = decoder_state[:, self._hidden_size * i: self._hidden_size * (i + 1)]
