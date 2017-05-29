@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 
 import deepy as D
 import deepy.tensor as T
-from deepy.trainers import ScheduledLearningRateAnnealer
+from deepy.trainers import SimpleScheduler
 from deepy.utils import MapDict
 
 from ..core import NeuralMTConfiguration, NeuralTranslator
@@ -209,7 +209,7 @@ class EncoderDecoderModel(object):
         Get a trainer.
         """
         if not annealer:
-            annealer = ScheduledLearningRateAnnealer(start_halving_at=3, end_at=6)
+            annealer = SimpleScheduler(6)
         return D.graph.get_trainer(self.compile_train(), method, config,
                                    annealer=annealer,
                                    validator=SimpleBleuValidator(self.compile_valid(), freq=valid_freq, save_path=save_path, criteria=valid_criteria))
