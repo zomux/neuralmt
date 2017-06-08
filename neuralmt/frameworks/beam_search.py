@@ -18,7 +18,7 @@ class BeamSearchKit(object):
         self.start_token_id = self.source_vocab.encode_token(start_token)
         self.end_token_id = self.target_vocab.encode_token(end_token)
         self.opts = MapDict(opts) if opts else opts
-        self.beam_size = beam_size
+        self.beam_size = beam_sizet
         self.prepare()
         
     def prepare(self):
@@ -67,7 +67,11 @@ class BeamSearchKit(object):
         hyps = [first_hyp]
         return hyps, final_hyps
     
-    def update_hyps(self, hyps, final_hyps, batch_new_states, batch_scores):
+    
+    def expand_hyps(self, hyps, batch_new_states, batch_scores):
+        """
+        Create B x B new hypotheses
+        """
         new_hyps = []
         for i, hyp in enumerate(hyps):
             new_state = batch_new_states[i]
@@ -86,18 +90,33 @@ class BeamSearchKit(object):
                         new_hyp[key] = copy.copy(hyp[key])
                 new_hyps.append(new_hyp)
         new_hyps.sort(key=lambda h: h["logp"])
+        return new_hyps
+    
+    def truncate_hyps(self, new_hyps, final_hyps=None):
+        """
+        Collect finished hyps and truncate.
+        """
         # Get final hyps
-        for i in range(len(new_hyps)):
-            hyp = new_hyps[i]
-            if hyp["tokens"][-1] == self.end_token_id:
-                tokens = hyp["tokens"][1:-1]
-                final_hyps.append({
-                    "tokens": tokens,
-                    "logp": hyp["logp"] / len(tokens),
-                    "raw": hyp
-                })
+        if final_hyps:
+            for i in range(len(new_hyps)):
+                hyp = new_hyps[i]
+                if hyp["tokens"][-1] == self.end_token_id:
+                    tokens = hyp["tokens"][1:-1]
+                    final_hyps.append({
+                        "tokens": tokens,
+                        "logp": hyp["logp"] / len(tokens),
+                        "raw": hyp
+                    })
         # Update hyps
         hyps = [h for h in new_hyps if h["tokens"][-1] != self.end_token_id][:self.beam_size]
+        return hyps, final_hyps
+    
+    def update_hyps(self, hyps, final_hyps, batch_new_states, batch_scores):
+        """
+        Expand and Truncate hypotheses.
+        """
+        new_hyps = self.expand_hyps(hyps, batch_new_states, batch_scores)
+        hyps, final_hyps = self.truncate_hyps(new_hyps, final_hyps)
         return hyps, final_hyps
     
     def beam_search(self, input_tokens):
