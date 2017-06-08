@@ -19,7 +19,7 @@ class SimpleBleuValidator(TrainingValidator):
 
     def run(self, data_x):
         output_vars = self.compute(*data_x)
-        _, _, tgt_tokens, tgt_masks = data_x
+        _, _, tgt_tokens, tgt_masks = data_x[:4]
         bleus = []
         for i in range(tgt_tokens.shape[0]):
             target_len = int(tgt_masks[i].sum())

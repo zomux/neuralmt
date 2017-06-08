@@ -64,10 +64,9 @@ class EncoderDecoderModel(object):
         """
         Decode step for valiadation.
         """
-        sampled_tokens = self.expand(vars).argmax(axis=1)
-        sampled_embed = self.lookup_feedback(sampled_tokens)
-        feedback_embed = T.ifelse(vars.t == 0, vars.feedback, sampled_embed)
-        vars.feedback = feedback_embed
+        sampled_tokens = self.expand(vars).argmax(axis=1).astype("int32")
+        vars.feedback_token = T.ifelse(vars.t == 0, vars.feedback_token, sampled_tokens)
+        vars.feedback = self.lookup_feedback(sampled_tokens)
         self.decode_step(vars)
 
     def decode(self, encoder_outputs, target_vars, input_mask=None, sampling=False, extra_outputs=None):
@@ -94,7 +93,7 @@ class EncoderDecoderModel(object):
             if not k.startswith("init_"):
                 non_sequences[k] = val
         loop = D.graph.loop(
-            sequences={"feedback": feedback_embeds.dimshuffle((1, 0, 2))},
+            sequences={"feedback_token": feedbacks.dimshuffle((1, 0)), "feedback": feedback_embeds.dimshuffle((1, 0, 2))},
             outputs=decoder_outputs,
             non_sequences=non_sequences)
         with loop as vars:
