@@ -18,7 +18,7 @@ class BeamSearchKit(object):
         self.start_token_id = self.source_vocab.encode_token(start_token)
         self.end_token_id = self.target_vocab.encode_token(end_token)
         self.opts = MapDict(opts) if opts else opts
-        self.beam_size = beam_sizet
+        self.beam_size = beam_size
         self.prepare()
         
     def prepare(self):
