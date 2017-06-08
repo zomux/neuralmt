@@ -68,7 +68,7 @@ class BeamSearchKit(object):
         return hyps, final_hyps
     
     
-    def expand_hyps(self, hyps, batch_new_states, batch_scores):
+    def expand_hyps(self, hyps, batch_new_states, batch_scores, sort=True):
         """
         Create B x B new hypotheses
         """
@@ -89,7 +89,8 @@ class BeamSearchKit(object):
                     if key not in new_hyp:
                         new_hyp[key] = copy.copy(hyp[key])
                 new_hyps.append(new_hyp)
-        new_hyps.sort(key=lambda h: h["logp"])
+        if sort:
+            new_hyps.sort(key=lambda h: h["logp"])
         return new_hyps
     
     def truncate_hyps(self, new_hyps, final_hyps=None):
