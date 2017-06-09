@@ -67,6 +67,11 @@ class BeamSearchKit(object):
         hyps = [first_hyp]
         return hyps, final_hyps
     
+    def fix_new_hyp(self, hyp, new_hyp):
+        """
+        Modify new hyp in the expansion.
+        """
+        return new_hyp
     
     def expand_hyps(self, hyps, batch_new_states, batch_scores, sort=True):
         """
@@ -82,8 +87,10 @@ class BeamSearchKit(object):
                     "state": new_state,
                     "tokens": hyp["tokens"] + [idx],
                     "logp": logprob[idx],
+                    "last_token_logp": batch_scores[idx],
                     "old_state": hyp["state"]
                 }
+                new_hyp = self.fix_new_hyp(hyp, new_hyp)
                 # Keep old information
                 for key in hyp:
                     if key not in new_hyp:
