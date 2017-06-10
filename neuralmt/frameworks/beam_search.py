@@ -87,7 +87,7 @@ class BeamSearchKit(object):
                     "state": new_state,
                     "tokens": hyp["tokens"] + [idx],
                     "logp": logprob[idx],
-                    "last_token_logp": batch_scores[idx],
+                    "last_token_logp": batch_scores[i][idx],
                     "old_state": hyp["state"]
                 }
                 new_hyp = self.fix_new_hyp(hyp, new_hyp)
