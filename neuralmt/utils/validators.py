@@ -14,7 +14,7 @@ class SimpleBleuValidator(TrainingValidator):
         """
         :param criteria: criteria for param selection: cost / bleu / mixed
         """
-        smaller_is_better = False if criteria == 'bleu' else True
+        smaller_is_better = False if criteria in ["bleu", "acc"] else True
         super(SimpleBleuValidator, self).__init__(valid_model, 'valid', freq=freq, save_path=save_path, criteria=criteria, smaller_is_better=smaller_is_better)
 
     def run(self, data_x):
