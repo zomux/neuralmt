@@ -4,6 +4,7 @@
 import numpy
 from bleu import smoothed_bleu
 from deepy.trainers import TrainingValidator
+import deepy as D
 
 class SimpleBleuValidator(TrainingValidator):
     """

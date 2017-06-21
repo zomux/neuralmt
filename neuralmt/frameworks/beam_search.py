@@ -73,15 +73,18 @@ class BeamSearchKit(object):
         """
         return new_hyp
     
-    def expand_hyps(self, hyps, batch_new_states, batch_scores, sort=True):
+    def expand_hyps(self, hyps, batch_new_states, batch_scores, sort=True, expand_num=None):
         """
         Create B x B new hypotheses
         """
+        if not expand_num:
+            expand_num = self.beam_size
         new_hyps = []
         for i, hyp in enumerate(hyps):
             new_state = batch_new_states[i]
             logprob = batch_scores[i] + hyp["logp"]
-            best_indices = sorted(np.argpartition(logprob, self.beam_size)[:self.beam_size], key=lambda x: logprob[x])
+            best_indices = sorted(
+                np.argpartition(logprob, expand_num)[:expand_num], key=lambda x: logprob[x])
             for idx in best_indices:
                 new_hyp = {
                     "state": new_state,
