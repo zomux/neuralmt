@@ -108,7 +108,7 @@ class BeamSearchKit(object):
         Collect finished hyps and truncate.
         """
         # Get final hyps
-        if final_hyps:
+        if final_hyps is not None:
             for i in range(len(new_hyps)):
                 hyp = new_hyps[i]
                 if hyp["tokens"][-1] == self.end_token_id:
