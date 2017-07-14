@@ -4,11 +4,12 @@
 import numpy as np
 from neuralmt import EncoderDecoderModel
 from deepy.utils import MapDict
+from six.moves import cPickle
 import copy
 
 class BeamSearchKit(object):
 
-    def __init__(self, model, source_vocab, target_vocab, start_token="<s>", end_token="</s>", beam_size=5, opts=None):
+    def __init__(self, model, source_vocab, target_vocab, start_token="<s>", end_token="</s>", beam_size=5, opts=None, unk_replace=False, alignment_path=None):
         assert isinstance(model, EncoderDecoderModel)
         self.model = model
         self.source_vocab = source_vocab
@@ -19,6 +20,10 @@ class BeamSearchKit(object):
         self.end_token_id = self.target_vocab.encode_token(end_token)
         self.opts = MapDict(opts) if opts else opts
         self.beam_size = beam_size
+        self.unk_replace = unk_replace
+        self.align_table = None
+        if alignment_path:
+            self.align_table = cPickle.load(alignment_path)
         self.prepare()
         
     def prepare(self):
