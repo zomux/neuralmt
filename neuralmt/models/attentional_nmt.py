@@ -45,14 +45,15 @@ class AttentionalNMT(EncoderDecoderModel):
         }
 
     def decode_step(self, vars):
-
-        context_vector = self.attention.compute_context_vector(vars.state, vars.encoder_states,
-                                                               precomputed_values=vars.precomputed_values,
-                                                               mask=vars.input_mask)
+        align_weights = self.attention.compute_alignments(vars.state, vars.precomputed_values, vars.input_mask)
+        context_vector = T.sum(align_weights[:, :, None] * vars.encoder_states, axis=1)
         decoder_input = T.concat([context_vector, vars.feedback])
         new_state, new_cell = self.decoder_rnn.compute_step(vars.state, lstm_cell=vars.cell, input=decoder_input)
         vars.state = new_state
         vars.cell = new_cell
+        if self.test_exporting:
+            # Record attention weights
+            vars.state += D.debug.record(align_weights, "att")
 
     def lookup_feedback(self, feedback):
         return self.tgt_embed_layer.compute(feedback)

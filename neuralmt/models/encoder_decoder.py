@@ -19,6 +19,7 @@ class EncoderDecoderModel(object):
     def __init__(self, hidden_size=1000, embed_size=1000, src_vocab_size=80000, tgt_vocab_size=40000,
                  embed_on_cpu=False,
                  decoder_states=None, decoder_state_sizes=None):
+        self.test_exporting = False
         self._hidden_size = hidden_size
         self._embed_size = embed_size
         self._src_vocab_size = src_vocab_size
@@ -165,6 +166,7 @@ class EncoderDecoderModel(object):
         """
         Export encoder, decoder and expander for test.
         """
+        self.test_exporting = True
         # Encoder
         input_var = T.var('imatrix')
         encoder_outputs = MapDict(self.encode(input_var))
@@ -200,7 +202,7 @@ class EncoderDecoderModel(object):
             decoder_outputs[state_name] = decoder_state[:, self._hidden_size * i: self._hidden_size * (i + 1)]
         prob = T.nnet.softmax(self.expand(decoder_outputs))
         expander_graph = D.graph.compile(input_vars=[decoder_state], output=prob)
-
+        self.test_exporting = False
         return encoder_graph, decoder_graph, expander_graph
 
     def get_trainer(self, method='adam', config=None, annealer=None, valid_freq=1500, save_path=None, valid_criteria='bleu'):
