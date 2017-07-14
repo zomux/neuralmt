@@ -23,7 +23,7 @@ class BeamSearchKit(object):
         self.unk_replace = unk_replace
         self.align_table = None
         if alignment_path:
-            self.align_table = cPickle.load(alignment_path)
+            self.align_table = cPickle.load(open(alignment_path))
         self.prepare()
         
     def prepare(self):
